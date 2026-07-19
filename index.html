@@ -15,32 +15,14 @@
     <div class="topbar-inner">
       <h1 class="brand">🃏 A Minha Coleção <span>Magic</span></h1>
       <nav class="tabs" role="tablist">
-        <button class="tab active" data-view="search" role="tab">Procurar</button>
         <button class="tab" data-view="editions" role="tab">Edições</button>
-        <button class="tab" data-view="collection" role="tab">Coleção</button>
+        <button class="tab active" data-view="collection" role="tab">Coleção</button>
       </nav>
       <div id="auth-area" class="auth-area"></div>
     </div>
   </header>
 
   <main class="container">
-    <!-- ===== VISTA: PROCURAR ===== -->
-    <section id="view-search" class="view active">
-      <form id="search-form" class="search-bar" autocomplete="off">
-        <input
-          id="search-input"
-          type="search"
-          placeholder="Procurar carta (ex.: Sol Ring, Lightning Bolt)…"
-          aria-label="Procurar carta"
-        />
-        <button type="submit" class="btn btn-primary">Procurar</button>
-      </form>
-      <p class="hint">Suporta a sintaxe da Scryfall (ex.: <code>t:dragon</code>, <code>c:red cmc&lt;=3</code>, <code>set:mh3</code>).</p>
-      <div id="search-status" class="status" aria-live="polite"></div>
-      <div id="search-results" class="card-grid"></div>
-      <div id="search-more" class="load-more"></div>
-    </section>
-
     <!-- ===== VISTA: EDIÇÕES ===== -->
     <section id="view-editions" class="view">
       <!-- Seletor de edições (grelha de símbolos) -->
@@ -68,7 +50,7 @@
     </section>
 
     <!-- ===== VISTA: COLEÇÃO ===== -->
-    <section id="view-collection" class="view">
+    <section id="view-collection" class="view active">
       <div id="collection-stats" class="stats"></div>
 
       <div class="collection-toolbar">

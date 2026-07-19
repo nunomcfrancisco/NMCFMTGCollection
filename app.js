@@ -12,7 +12,6 @@ const SCRYFALL = "https://api.scryfall.com";
 // Arranca vazia; a camada de dados (auth.js) carrega-a da base de dados
 // assim que houver sessão iniciada.
 let collection = {};
-let searchState = { query: "", nextPage: null, loading: false };
 
 /* ---------- Utilitários ---------- */
 const $ = (sel) => document.querySelector(sel);
@@ -91,84 +90,8 @@ $$(".tab").forEach((tab) => {
   });
 });
 
-/* ============================================================
-   PROCURAR NA SCRYFALL
-   ============================================================ */
-$("#search-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const q = $("#search-input").value.trim();
-  if (!q) return;
-  searchState = { query: q, nextPage: null, loading: false };
-  $("#search-results").innerHTML = "";
-  $("#search-more").innerHTML = "";
-  runSearch(`${SCRYFALL}/cards/search?q=${encodeURIComponent(q)}&unique=cards`);
-});
-
-async function runSearch(url) {
-  if (searchState.loading) return;
-  searchState.loading = true;
-  setStatus("#search-status", `<span class="spinner"></span>A procurar…`);
-  $("#search-more").innerHTML = "";
-
-  try {
-    const res = await fetch(url);
-    if (res.status === 404) {
-      setStatus("#search-status", "Nenhuma carta encontrada. Tenta outra pesquisa.");
-      return;
-    }
-    if (!res.ok) throw new Error(`Erro ${res.status}`);
-    const data = await res.json();
-
-    setStatus("#search-status", `${data.total_cards.toLocaleString("pt-PT")} resultado(s).`);
-    appendResults(data.data);
-
-    searchState.nextPage = data.has_more ? data.next_page : null;
-    if (searchState.nextPage) {
-      $("#search-more").innerHTML =
-        `<button class="btn" id="load-more-btn">Carregar mais</button>`;
-      $("#load-more-btn").addEventListener("click", () => runSearch(searchState.nextPage));
-    }
-  } catch (err) {
-    setStatus("#search-status", `Falha na pesquisa: ${esc(err.message)}`, true);
-  } finally {
-    searchState.loading = false;
-  }
-}
-
-function appendResults(cards) {
-  const grid = $("#search-results");
-  cards.forEach((card) => grid.appendChild(searchCardEl(card)));
-}
-
-function searchCardEl(card) {
-  const el = document.createElement("div");
-  el.className = "card";
-  const price = cardPrice(card, false);
-
-  el.innerHTML = `
-    <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
-      <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
-    </div>
-    <div class="card-body">
-      <div class="card-name">${esc(card.name)}</div>
-      <div class="card-meta">${esc(card.set_name)} · ${esc((card.rarity || "").toUpperCase())}</div>
-      <div class="card-price">${price ? eur(price) : "—"}</div>
-      <div class="card-actions"></div>
-    </div>`;
-
-  const actions = el.querySelector(".card-actions");
-  makeOwnToggle(card, el, actions)();
-
-  el.querySelector(".card-img-wrap").addEventListener("click", (e) => {
-    if (e.target.closest(".card-actions")) return;
-    openPreview(el.querySelector(".card-img-wrap").dataset.large);
-  });
-
-  return el;
-}
-
 /* Botão que alterna entre adicionar/remover a carta (máx. 1 cópia).
-   Usado na Procura e nas Edições. Devolve uma função que refaz o estado visual.
+   Usado nas Edições. Devolve uma função que refaz o estado visual.
    `afterToggle` corre depois de cada alteração de posse. */
 function makeOwnToggle(card, cardEl, actionsEl, afterToggle) {
   function sync() {
@@ -677,5 +600,3 @@ function setStatus(sel, html, isError = false) {
   el.classList.toggle("error", isError);
 }
 
-/* ---------- Arranque ---------- */
-$("#search-input").focus();
