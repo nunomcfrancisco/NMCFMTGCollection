@@ -327,4 +327,33 @@ a { color: var(--accent-hi); }
   .card-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .set-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .set-name { font-size: 0.8rem; }
+
+  /* Barra de ferramentas da coleção — grelha compacta em bloco no telemóvel */
+  .collection-toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .collection-toolbar .spacer { display: none; }
+  .collection-toolbar input[type="search"],
+  .collection-toolbar select { min-width: 0; }
+  /* Filtro de texto ocupa a linha toda */
+  .collection-toolbar input[type="search"] { grid-column: 1 / -1; }
+  /* Ordenar + raridade lado a lado */
+  #collection-sort,
+  #collection-rarity { width: 100%; }
+  /* Botões preenchem a célula; os mais compridos ocupam a linha toda */
+  .collection-toolbar .btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 12px 10px;
+  }
+  #import-csv-btn,
+  #clear-btn { grid-column: 1 / -1; }
+
+  /* Barra de detalhe (voltar / filtros) também em bloco */
+  .edition-detail-bar { gap: 8px; }
+  .edition-detail-bar .rarity-filter { width: 100%; }
 }
