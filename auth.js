@@ -14,7 +14,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, setDoc, deleteDoc, onSnapshot,
+  collection, doc, setDoc, deleteDoc, writeBatch, onSnapshot,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const cfg = window.FIREBASE_CONFIG || {};
@@ -47,6 +47,25 @@ window.Storage = {
     if (!db || !currentUser) return;
     deleteDoc(doc(db, "users", currentUser.uid, "cards", id))
       .catch((e) => setSyncStatus("Falha ao remover: " + e.message, true));
+  },
+  // Grava/remove muitas cartas de uma vez, em lotes (para imports).
+  // upserts: [{ id, entry }] ; deletes: [id]. Devolve uma Promise.
+  async commitMany(upserts = [], deletes = []) {
+    if (!db || !currentUser) return;
+    const ref = (id) => doc(db, "users", currentUser.uid, "cards", id);
+    const ops = [
+      ...upserts.map((u) => ["set", u.id, u.entry]),
+      ...deletes.map((id) => ["del", id]),
+    ];
+    const CHUNK = 400; // o Firestore permite até 500 operações por batch
+    for (let i = 0; i < ops.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      for (const [kind, id, entry] of ops.slice(i, i + CHUNK)) {
+        if (kind === "set") batch.set(ref(id), entry);
+        else batch.delete(ref(id));
+      }
+      await batch.commit();
+    }
   },
 };
 
