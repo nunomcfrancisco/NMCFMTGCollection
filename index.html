@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>A Minha Coleção Magic</title>
-  <meta name="description" content="Gere a tua coleção de Magic: The Gathering — grátis, no browser." />
+  <meta name="description" content="Gere a tua coleção de Magic: The Gathering — guardada numa base de dados na nuvem." />
   <link rel="preconnect" href="https://api.scryfall.com" />
   <link rel="preconnect" href="https://cards.scryfall.io" />
   <link rel="stylesheet" href="styles.css" />
@@ -98,10 +98,13 @@
     <img id="preview-img" alt="Pré-visualização da carta" />
   </div>
 
+  <!-- Porta de entrada: login obrigatório (a coleção vive na base de dados) -->
+  <div id="auth-gate" class="auth-gate" hidden></div>
+
   <footer class="footer">
     <p>
       Dados e imagens via <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.
-      A coleção fica guardada apenas neste browser — usa <strong>Exportar</strong> para fazer backup.
+      A coleção fica guardada numa base de dados na nuvem — usa <strong>Exportar</strong> para um backup extra.
     </p>
   </footer>
 
