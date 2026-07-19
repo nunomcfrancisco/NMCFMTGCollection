@@ -85,7 +85,7 @@ $$(".tab").forEach((tab) => {
     tab.classList.add("active");
     const view = tab.dataset.view;
     $(`#view-${view}`).classList.add("active");
-    if (view === "collection") renderCollection();
+    if (view === "collection") { collectionView.setCode = null; renderCollection(); }
     if (view === "editions") initEditions();
   });
 });
@@ -163,14 +163,20 @@ function toggleFoil(id) {
 /* ============================================================
    RENDER DA COLEÇÃO
    ============================================================ */
+// Estado da vista Coleção: setCode = null → grelha de edições; senão → detalhe.
+let collectionView = { setCode: null };
+
 $("#collection-filter").addEventListener("input", renderCollection);
 $("#collection-sort").addEventListener("change", renderCollection);
+$("#collection-back").addEventListener("click", () => {
+  collectionView.setCode = null;
+  renderCollection();
+});
 
 function renderCollection() {
-  const grid = $("#collection-grid");
   const entries = Object.values(collection);
 
-  // Estatísticas (máx. 1 cópia por carta → total = nº de cartas únicas)
+  // Estatísticas gerais (topo)
   const unique = entries.length;
   const totalValue = entries.reduce((s, e) => s + cardPrice(e.card, e.foil), 0);
   $("#collection-stats").innerHTML = `
@@ -178,25 +184,118 @@ function renderCollection() {
     <div class="stat"><div class="stat-label">Valor estimado</div><div class="stat-value">${eur(totalValue)}</div></div>`;
 
   if (unique === 0) {
+    collectionView.setCode = null;
+    $("#collection-detail").hidden = true;
+    $("#collection-picker").hidden = false;
     $("#collection-status").innerHTML = "";
-    grid.innerHTML = `
-      <div class="empty">
+    $("#collection-sets").innerHTML = `
+      <div class="empty" style="grid-column: 1 / -1;">
         <h3>A tua coleção está vazia</h3>
         <p>Vai a <strong>Edições</strong>, escolhe um set e marca as cartas que tens, ou usa <strong>Importar</strong>.</p>
       </div>`;
     return;
   }
 
-  // Filtrar
-  const filter = $("#collection-filter").value.trim().toLowerCase();
-  let list = entries.filter((e) =>
-    !filter ||
-    e.card.name.toLowerCase().includes(filter) ||
-    (e.card.set_name || "").toLowerCase().includes(filter));
+  // Se o set escolhido já não tem cartas (ex.: removeste a última), volta à grelha.
+  if (collectionView.setCode && !ownedInSet(collectionView.setCode)) {
+    collectionView.setCode = null;
+  }
 
-  // Ordenar (aplica-se às cartas dentro de cada set)
+  if (collectionView.setCode) renderCollectionDetail();
+  else renderCollectionPicker();
+
+  // Carrega os símbolos/percentagens dos sets se ainda não os temos.
+  if (!setsByCode) ensureSets().then(renderCollection).catch(() => {});
+}
+
+// Agrupa a coleção por código de set.
+function collectionBySet() {
+  const bySet = {};
+  for (const e of Object.values(collection)) {
+    const code = e.card.set || "?";
+    (bySet[code] ||= []).push(e);
+  }
+  return bySet;
+}
+
+function setDisplayName(code, fallbackEntry) {
+  return (setsByCode && setsByCode[code] && setsByCode[code].name) ||
+    (fallbackEntry && fallbackEntry.card.set_name) || code.toUpperCase();
+}
+
+// GRELHA de edições que tens na coleção (símbolo + nome + %), estilo Edições.
+function renderCollectionPicker() {
+  $("#collection-detail").hidden = true;
+  $("#collection-picker").hidden = false;
+
+  const bySet = collectionBySet();
+  const filter = $("#collection-filter").value.trim().toLowerCase();
+  let codes = Object.keys(bySet);
+  if (filter) {
+    codes = codes.filter((c) =>
+      setDisplayName(c, bySet[c][0]).toLowerCase().includes(filter) ||
+      c.toLowerCase().includes(filter));
+  }
+  codes.sort((a, b) => {
+    const da = (setsByCode && setsByCode[a] && setsByCode[a].released_at) || "";
+    const db = (setsByCode && setsByCode[b] && setsByCode[b].released_at) || "";
+    if (da !== db) return db.localeCompare(da);
+    return setDisplayName(a, bySet[a][0]).localeCompare(setDisplayName(b, bySet[b][0]));
+  });
+
+  $("#collection-status").innerHTML = filter
+    ? `${codes.length} edição(ões).`
+    : (setsByCode ? "" : `<span class="spinner"></span>A carregar edições…`);
+
+  const grid = $("#collection-sets");
+  grid.innerHTML = "";
+  codes.forEach((code) => {
+    const meta = setsByCode && setsByCode[code];
+    const owned = bySet[code].length;
+    const total = meta ? meta.card_count : 0;
+    const pct = total ? Math.round((owned / total) * 100) : null;
+    const name = setDisplayName(code, bySet[code][0]);
+
+    const cell = document.createElement("button");
+    cell.className = "set-cell";
+    cell.title = pct === null
+      ? `${name} — ${owned} carta(s)`
+      : `${name} — ${owned}/${total} (${pct}%)`;
+    cell.innerHTML = `
+      <img class="set-symbol" loading="lazy" src="${esc(meta ? meta.icon_svg_uri || "" : "")}" alt="" />
+      <span class="set-name">${esc(name)}</span>
+      <span class="set-pct">${pct === null ? owned : pct + "%"}</span>`;
+    cell.addEventListener("click", () => { collectionView.setCode = code; renderCollection(); });
+    grid.appendChild(cell);
+  });
+}
+
+// DETALHE: as tuas cartas de uma edição escolhida.
+function renderCollectionDetail() {
+  $("#collection-picker").hidden = true;
+  $("#collection-detail").hidden = false;
+
+  const code = collectionView.setCode;
+  const meta = setsByCode && setsByCode[code];
+  let entries = Object.values(collection).filter((e) => (e.card.set || "?") === code);
+  const name = setDisplayName(code, entries[0]);
+  const owned = entries.length;
+  const total = meta ? meta.card_count : 0;
+  const pct = total ? Math.round((owned / total) * 100) : null;
+
+  $("#collection-set-title").textContent = name;
+  $("#collection-set-stats").innerHTML =
+    `<div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${owned.toLocaleString("pt-PT")}</div></div>` +
+    (total
+      ? `<div class="stat"><div class="stat-label">Cartas na edição</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
+         <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`
+      : "");
+
+  // Filtro + ordenação das cartas
+  const filter = $("#collection-filter").value.trim().toLowerCase();
+  if (filter) entries = entries.filter((e) => e.card.name.toLowerCase().includes(filter));
   const sort = $("#collection-sort").value;
-  const sortFn = (a, b) => {
+  entries.sort((a, b) => {
     switch (sort) {
       case "name-desc": return b.card.name.localeCompare(a.card.name);
       case "value-desc": return cardPrice(b.card, b.foil) - cardPrice(a.card, a.foil);
@@ -204,53 +303,13 @@ function renderCollection() {
       case "recent": return (b.addedAt || 0) - (a.addedAt || 0);
       default: return a.card.name.localeCompare(b.card.name);
     }
-  };
-
-  $("#collection-status").innerHTML = filter
-    ? `${list.length} de ${unique} cartas únicas.`
-    : "";
-
-  // Agrupar por set (edição)
-  const groups = {};
-  for (const e of list) {
-    const code = e.card.set || "?";
-    (groups[code] ||= []).push(e);
-  }
-
-  // Ordenar os sets: por data de lançamento (mais recente primeiro), depois nome.
-  const setName = (code) =>
-    (setsByCode && setsByCode[code] && setsByCode[code].name) ||
-    groups[code][0].card.set_name || code.toUpperCase();
-  const codes = Object.keys(groups).sort((a, b) => {
-    const da = (setsByCode && setsByCode[a] && setsByCode[a].released_at) || "";
-    const db = (setsByCode && setsByCode[b] && setsByCode[b].released_at) || "";
-    if (da !== db) return db.localeCompare(da);
-    return setName(a).localeCompare(setName(b));
   });
 
+  $("#collection-status").innerHTML = filter ? `${entries.length} carta(s).` : "";
+
+  const grid = $("#collection-grid");
   grid.innerHTML = "";
-  for (const code of codes) {
-    const meta = setsByCode && setsByCode[code];
-    const owned = ownedInSet(code);           // total na coleção deste set (sem filtro)
-    const total = meta ? meta.card_count : 0;
-    const pct = total ? Math.round((owned / total) * 100) : null;
-
-    const header = document.createElement("div");
-    header.className = "collection-set-header";
-    header.innerHTML = `
-      <img class="set-symbol" loading="lazy" src="${esc(meta ? meta.icon_svg_uri || "" : "")}" alt="" />
-      <span class="cs-name">${esc(setName(code))}</span>
-      <span class="cs-pct">${pct === null ? `${owned} carta(s)` : `${owned}/${total} · ${pct}%`}</span>`;
-    grid.appendChild(header);
-
-    const sub = document.createElement("div");
-    sub.className = "card-grid";
-    groups[code].sort(sortFn).forEach((entry) => sub.appendChild(collectionCardEl(entry)));
-    grid.appendChild(sub);
-  }
-
-  // Se ainda não temos os símbolos/percentagens dos sets, carrega e re-renderiza.
-  if (!setsByCode) ensureSets().then(renderCollection).catch(() => {});
+  entries.forEach((entry) => grid.appendChild(collectionCardEl(entry)));
 }
 
 function collectionCardEl(entry) {
