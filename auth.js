@@ -65,6 +65,7 @@ window.Storage = {
         else batch.delete(ref(id));
       }
       await batch.commit();
+      if (i + CHUNK < ops.length) await new Promise((r) => setTimeout(r, 40));
     }
   },
 };
