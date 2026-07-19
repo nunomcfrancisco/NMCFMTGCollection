@@ -170,6 +170,28 @@ a { color: var(--accent-hi); }
 .stat-label { color: var(--text-dim); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
 .stat-value { font-size: 1.55rem; font-weight: 800; margin-top: 4px; color: var(--accent-hi); }
 
+/* ===== Cartas em falta (grayscale) ===== */
+.card.not-owned .card-img-wrap img {
+  filter: grayscale(1) brightness(0.72);
+  transition: filter 0.15s ease;
+}
+.card.not-owned:hover .card-img-wrap img { filter: grayscale(0.35) brightness(0.9); }
+.card.not-owned { opacity: 0.92; }
+
+/* ===== Editions toolbar ===== */
+.editions-toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+.editions-toolbar select {
+  flex: 1; min-width: 220px;
+  padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--bg-elev); color: var(--text); font-size: 0.95rem;
+}
+.editions-toolbar select:focus { outline: none; border-color: var(--accent); }
+.check-inline {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--text-dim); font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.check-inline input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
 /* ===== Collection toolbar ===== */
 .collection-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
 .collection-toolbar input[type="search"], .collection-toolbar select {
@@ -193,6 +215,7 @@ a { color: var(--accent-hi); }
   background: rgba(0,0,0,0.82); display: flex; align-items: center; justify-content: center;
   cursor: zoom-out; padding: 20px;
 }
+.preview[hidden] { display: none; }
 .preview img { max-height: 92vh; max-width: 92vw; border-radius: 18px; box-shadow: var(--shadow); }
 
 /* ===== Footer ===== */
