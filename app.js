@@ -585,6 +585,37 @@ $("#export-btn").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
+/* ---------- Apagar toda a coleção ---------- */
+$("#clear-btn").addEventListener("click", async () => {
+  const ids = Object.keys(collection);
+  if (!ids.length) {
+    setStatus("#collection-status", "A coleção já está vazia.");
+    return;
+  }
+  const ok = confirm(
+    `Apagar TODAS as ${ids.length} cartas da coleção?\n\n` +
+    `Isto remove-as da base de dados e não pode ser desfeito. ` +
+    `Se quiseres um backup, cancela e usa Exportar primeiro.`
+  );
+  if (!ok) return;
+
+  setStatus("#collection-status", `<span class="spinner"></span>A apagar…`);
+  importing = true; // evita que snapshots parciais mexam na coleção
+  try {
+    if (window.Storage && window.Storage.commitMany) {
+      await window.Storage.commitMany([], ids); // apaga em lotes
+    }
+    collection = {};
+    collectionView.setCode = null;
+    renderCollection();
+    setStatus("#collection-status", "Coleção apagada.");
+  } catch (err) {
+    setStatus("#collection-status", `Falha ao apagar: ${esc(err.message)} — recarrega a página.`, true);
+  } finally {
+    importing = false;
+  }
+});
+
 $("#import-btn").addEventListener("click", () => $("#import-file").click());
 
 $("#import-file").addEventListener("change", async (e) => {
