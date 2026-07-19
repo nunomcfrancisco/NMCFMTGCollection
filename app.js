@@ -24,7 +24,21 @@ function persist(id) {
   if (collection[id]) window.Storage.upsert(id, collection[id]);
   else window.Storage.remove(id);
 }
-function persistMany(ids) { ids.forEach(persist); }
+// Grava muitas cartas de uma vez (em lote) — evita rajadas de escrituras
+// individuais que rebentam o SDK do Firestore em imports grandes.
+function persistMany(ids) {
+  if (!window.Storage) return Promise.resolve();
+  if (window.Storage.commitMany) {
+    const upserts = [], deletes = [];
+    for (const id of ids) {
+      if (collection[id]) upserts.push({ id, entry: collection[id] });
+      else deletes.push(id);
+    }
+    return window.Storage.commitMany(upserts, deletes);
+  }
+  ids.forEach(persist);
+  return Promise.resolve();
+}
 
 /* ---------- Ponte com a camada de dados (auth.js) ---------- */
 // Devolve a coleção atual (usada ao gravar na base de dados).
@@ -113,7 +127,7 @@ function makeOwnToggle(card, cardEl, actionsEl, afterToggle) {
 /* ============================================================
    COLEÇÃO — adicionar / remover
    ============================================================ */
-function addToCollection(card, foil = false) {
+function addToCollection(card, foil = false, defer = false) {
   const id = card.id;
   // No máximo 1 cópia: se já existe, apenas garante qty = 1 (e atualiza o foil).
   if (collection[id]) {
@@ -127,7 +141,8 @@ function addToCollection(card, foil = false) {
       card: slimCard(card),
     };
   }
-  persist(id);
+  // defer = deixa a gravação para um lote posterior (usado nos imports).
+  if (!defer) persist(id);
 }
 
 function removeFromCollection(id) {
@@ -204,8 +219,13 @@ function renderCollection() {
   if (collectionView.setCode) renderCollectionDetail();
   else renderCollectionPicker();
 
-  // Carrega os símbolos/percentagens dos sets se ainda não os temos.
-  if (!setsByCode) ensureSets().then(renderCollection).catch(() => {});
+  // Carrega os símbolos/percentagens dos sets UMA vez e re-renderiza quando
+  // chegam. O guarda evita anexar vários .then (que causariam re-renders
+  // repetidos a limpar o status).
+  if (!setsByCode && !collectionView.loadingSets) {
+    collectionView.loadingSets = true;
+    ensureSets().then(renderCollection).catch(() => {});
+  }
 }
 
 // Agrupa a coleção por código de set.
@@ -678,6 +698,7 @@ async function importMoxfieldCSV(text) {
   }
 
   let imported = 0, notFound = 0;
+  const addedIds = [];
   const batchSize = 75; // limite da Scryfall
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, i + batchSize);
@@ -692,13 +713,21 @@ async function importMoxfieldCSV(text) {
     const data = await res.json();
     (data.data || []).forEach((card) => {
       const foil = foilByKey[`${card.set}|${card.collector_number}`] || false;
-      addToCollection(card, foil);
+      addToCollection(card, foil, true); // defer: grava tudo num lote no fim
+      addedIds.push(card.id);
       imported++;
     });
     notFound += (data.not_found || []).length;
     if (i + batchSize < items.length) await new Promise((r) => setTimeout(r, 100));
   }
 
+  // Grava todas as cartas importadas de uma só vez (um writeBatch, não 1 por carta).
+  setStatus("#collection-status", `<span class="spinner"></span>A guardar na base de dados…`);
+  await persistMany(addedIds);
+
+  // Garante que os símbolos/percentagens dos sets já carregaram, para o seu
+  // re-render não apagar a mensagem final.
+  await ensureSets().catch(() => {});
   renderCollection();
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
   setStatus("#collection-status",
