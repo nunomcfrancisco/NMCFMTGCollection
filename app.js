@@ -13,6 +13,11 @@ const SCRYFALL = "https://api.scryfall.com";
 // assim que houver sessão iniciada.
 let collection = {};
 
+// Enquanto está true, os snapshots do Firestore não mexem na coleção em
+// memória — durante um import é ela a fonte de verdade (senão os snapshots
+// parciais de cada lote apagariam cartas ainda por gravar).
+let importing = false;
+
 /* ---------- Utilitários ---------- */
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -46,6 +51,7 @@ window.getCollection = () => collection;
 
 // Substitui a coleção com os dados vindos da base de dados (não re-grava).
 window.applyRemoteCollection = (data) => {
+  if (importing) return; // durante um import ignora snapshots (ver 'importing')
   collection = data && typeof data === "object" && !Array.isArray(data) ? data : {};
   // Aplica a regra de 1 cópia máxima.
   for (const entry of Object.values(collection)) {
@@ -610,7 +616,12 @@ $("#import-file").addEventListener("change", async (e) => {
       if (entry && entry.qty > 1) entry.qty = 1;
     }
     Object.keys(collection).forEach((id) => affected.add(id));
-    persistMany([...affected]);
+    importing = true; // não deixar snapshots parciais mexerem na coleção
+    try {
+      await persistMany([...affected]);
+    } finally {
+      importing = false;
+    }
     renderCollection();
     setStatus("#collection-status", "Coleção importada com sucesso.");
   } catch (err) {
@@ -661,6 +672,26 @@ function parseCSV(text) {
   return rows;
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Pedido à Scryfall com repetição (backoff) quando há rate limit (429) ou erro de servidor.
+async function scryfallCollection(identifiers) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const res = await fetch(`${SCRYFALL}/cards/collection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifiers }),
+    });
+    if (res.status === 429 || res.status >= 500) {
+      await sleep(500 * Math.pow(2, attempt)); // 0.5s, 1s, 2s, 4s, 8s, 16s
+      continue;
+    }
+    if (!res.ok) throw new Error(`Erro ${res.status} na Scryfall`);
+    return res.json();
+  }
+  throw new Error("a Scryfall está a limitar os pedidos");
+}
+
 async function importMoxfieldCSV(text) {
   const rows = parseCSV(text).filter((r) => r.some((c) => c.trim() !== ""));
   if (rows.length < 2) throw new Error("CSV vazio ou sem cartas.");
@@ -697,43 +728,66 @@ async function importMoxfieldCSV(text) {
     );
   }
 
-  let imported = 0, notFound = 0;
-  const addedIds = [];
-  const batchSize = 75; // limite da Scryfall
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    setStatus("#collection-status",
-      `<span class="spinner"></span>A importar do Moxfield… ${Math.min(i + batchSize, items.length)}/${items.length}`);
-    const res = await fetch(`${SCRYFALL}/cards/collection`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifiers: batch }),
-    });
-    if (!res.ok) throw new Error(`Erro ${res.status} na Scryfall`);
-    const data = await res.json();
-    (data.data || []).forEach((card) => {
-      const foil = foilByKey[`${card.set}|${card.collector_number}`] || false;
-      addToCollection(card, foil, true); // defer: grava tudo num lote no fim
-      addedIds.push(card.id);
-      imported++;
-    });
-    notFound += (data.not_found || []).length;
-    if (i + batchSize < items.length) await new Promise((r) => setTimeout(r, 100));
+  let imported = 0, notFound = 0, aborted = null;
+  const buffer = []; // {id, entry} ainda por gravar na base de dados
+
+  // Grava o buffer em lotes de 400 (só remove do buffer após gravar com sucesso).
+  async function flush(force) {
+    while (buffer.length >= (force ? 1 : 400)) {
+      const chunk = buffer.slice(0, 400);
+      await window.Storage.commitMany(chunk, []);
+      buffer.splice(0, 400);
+    }
   }
 
-  // Grava todas as cartas importadas de uma só vez (um writeBatch, não 1 por carta).
-  setStatus("#collection-status", `<span class="spinner"></span>A guardar na base de dados…`);
-  await persistMany(addedIds);
+  importing = true; // a partir daqui, os snapshots não mexem na coleção
+  try {
+    for (let i = 0; i < items.length; i += 75) { // 75 = limite da Scryfall por pedido
+      const batch = items.slice(i, i + 75);
+      setStatus("#collection-status",
+        `<span class="spinner"></span>A importar do Moxfield… ${Math.min(i + 75, items.length)}/${items.length} (guardadas ${imported - buffer.length})`);
+      let data;
+      try {
+        data = await scryfallCollection(batch);
+      } catch (err) { aborted = err.message; break; }
 
-  // Garante que os símbolos/percentagens dos sets já carregaram, para o seu
-  // re-render não apagar a mensagem final.
+      for (const card of (data.data || [])) {
+        const foil = foilByKey[`${card.set}|${card.collector_number}`] || false;
+        addToCollection(card, foil, true); // defer: gravamos por lotes
+        buffer.push({ id: card.id, entry: collection[card.id] });
+        imported++;
+      }
+      notFound += (data.not_found || []).length;
+
+      try { await flush(false); }
+      catch (err) { aborted = "falha ao guardar (" + err.message + ")"; break; }
+
+      await sleep(90); // respeita o ritmo pedido pela Scryfall
+    }
+
+    // Grava o que sobrou.
+    if (!aborted) {
+      try { await flush(true); }
+      catch (err) { aborted = "falha ao guardar (" + err.message + ")"; }
+    }
+  } finally {
+    importing = false;
+  }
+
+  // Garante que os símbolos/percentagens dos sets já carregaram (evita re-render
+  // que apague a mensagem final).
   await ensureSets().catch(() => {});
   renderCollection();
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
+
+  const saved = imported - buffer.length;
   setStatus("#collection-status",
-    `Importadas ${imported} carta(s) do Moxfield.` +
+    (aborted
+      ? `Importação interrompida: ${aborted}. Guardadas ${saved} carta(s) — volta a correr o import para continuar.`
+      : `Importadas ${imported} carta(s) do Moxfield.`) +
     (skippedProxy ? ` ${skippedProxy} proxy(s) ignorada(s).` : "") +
-    (notFound ? ` ${notFound} não foram encontradas na Scryfall.` : ""));
+    (notFound ? ` ${notFound} não encontradas na Scryfall.` : ""),
+    !!aborted);
 }
 
 /* ============================================================
