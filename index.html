@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" />
   <link rel="preconnect" href="https://accounts.google.com" />
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <link rel="stylesheet" href="styles.css?v=14" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
@@ -101,6 +101,10 @@
       <div id="collection-detail" hidden>
         <div class="edition-detail-bar">
           <button id="collection-back" class="btn btn-sm">← Todos os sets</button>
+          <label class="check-inline">
+            <input type="checkbox" id="collection-show-missing" />
+            Mostrar cartas em falta
+          </label>
         </div>
         <h2 id="collection-set-title" class="edition-title"></h2>
         <div id="collection-set-stats" class="stats"></div>
@@ -124,8 +128,8 @@
     </p>
   </footer>
 
-  <script src="config.js?v=13"></script>
-  <script src="app.js?v=13"></script>
-  <script src="auth.js?v=13" type="module"></script>
+  <script src="config.js?v=14"></script>
+  <script src="app.js?v=14"></script>
+  <script src="auth.js?v=14" type="module"></script>
 </body>
 </html>
