@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main", "master"]
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-check:
+    name: node --check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Syntax-check JS files
+        run: |
+          shopt -s nullglob
+          files=(*.js)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No .js files to check."
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "Checking $f"
+            node --check "$f"
+          done

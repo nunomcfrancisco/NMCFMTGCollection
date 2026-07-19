@@ -222,6 +222,11 @@ a { color: var(--accent-hi); }
   color: var(--text-dim); font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .check-inline input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.rarity-filter {
+  padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--bg-elev); color: var(--text); font-size: 0.9rem; cursor: pointer;
+}
+.rarity-filter:focus { outline: none; border-color: var(--accent); }
 
 /* ===== Collection toolbar ===== */
 .collection-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }

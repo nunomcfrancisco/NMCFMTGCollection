@@ -189,6 +189,8 @@ let collectionView = { setCode: null };
 
 $("#collection-filter").addEventListener("input", renderCollection);
 $("#collection-sort").addEventListener("change", renderCollection);
+$("#collection-rarity").addEventListener("change", renderCollection);
+$("#collection-show-missing").addEventListener("change", renderCollection);
 $("#collection-back").addEventListener("click", () => {
   collectionView.setCode = null;
   renderCollection();
@@ -212,13 +214,16 @@ function renderCollection() {
     $("#collection-sets").innerHTML = `
       <div class="empty" style="grid-column: 1 / -1;">
         <h3>A tua coleção está vazia</h3>
-        <p>Vai a <strong>Edições</strong>, escolhe um set e marca as cartas que tens, ou usa <strong>Importar</strong>.</p>
+        <p>Vai aos <strong>Sets</strong>, escolhe um set e marca as cartas que tens, ou usa <strong>Importar</strong>.</p>
       </div>`;
     return;
   }
 
   // Se o set escolhido já não tem cartas (ex.: removeste a última), volta à grelha.
-  if (collectionView.setCode && !ownedInSet(collectionView.setCode)) {
+  // Exceção: com "Mostrar cartas em falta" ativo continua a fazer sentido ver o set
+  // (podes voltar a adicionar cartas dali).
+  if (collectionView.setCode && !ownedInSet(collectionView.setCode) &&
+      !$("#collection-show-missing").checked) {
     collectionView.setCode = null;
   }
 
@@ -270,8 +275,8 @@ function renderCollectionPicker() {
   });
 
   $("#collection-status").innerHTML = filter
-    ? `${codes.length} edição(ões).`
-    : (setsByCode ? "" : `<span class="spinner"></span>A carregar edições…`);
+    ? `${codes.length} set(s).`
+    : (setsByCode ? "" : `<span class="spinner"></span>A carregar sets…`);
 
   const grid = $("#collection-sets");
   grid.innerHTML = "";
@@ -291,7 +296,11 @@ function renderCollectionPicker() {
       <img class="set-symbol" loading="lazy" src="${esc(meta ? meta.icon_svg_uri || "" : "")}" alt="" />
       <span class="set-name">${esc(name)}</span>
       <span class="set-pct">${pct === null ? owned : pct + "%"}</span>`;
-    cell.addEventListener("click", () => { collectionView.setCode = code; renderCollection(); });
+    cell.addEventListener("click", () => {
+      collectionView.setCode = code;
+      $("#collection-show-missing").checked = false; // default: só cartas colecionadas
+      renderCollection();
+    });
     grid.appendChild(cell);
   });
 }
@@ -313,14 +322,63 @@ function renderCollectionDetail() {
   $("#collection-set-stats").innerHTML =
     `<div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${owned.toLocaleString("pt-PT")}</div></div>` +
     (total
-      ? `<div class="stat"><div class="stat-label">Cartas na edição</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
+      ? `<div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
          <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`
       : "");
 
-  // Filtro + ordenação das cartas
   const filter = $("#collection-filter").value.trim().toLowerCase();
-  if (filter) entries = entries.filter((e) => e.card.name.toLowerCase().includes(filter));
+  const rarity = $("#collection-rarity").value;
   const sort = $("#collection-sort").value;
+  const grid = $("#collection-grid");
+  const showMissing = $("#collection-show-missing").checked;
+
+  // Modo "mostrar cartas em falta": mostra TODAS as cartas do set (as que faltam
+  // aparecem a cinzento e com botão para adicionar). Precisa da lista completa da Scryfall.
+  if (showMissing) {
+    if (!setCardsCache[code]) {
+      grid.innerHTML = "";
+      setStatus("#collection-status", `<span class="spinner"></span>A carregar cartas do set…`);
+      fetchSetCards(code)
+        .then(() => { if (collectionView.setCode === code) renderCollection(); })
+        .catch((err) => {
+          setStatus("#collection-status", `Falha ao carregar cartas: ${esc(err.message)}`, true);
+          $("#collection-show-missing").checked = false;
+          if (collectionView.setCode === code) renderCollection();
+        });
+      return;
+    }
+
+    let cards = setCardsCache[code].slice();
+    if (filter) cards = cards.filter((c) => c.name.toLowerCase().includes(filter));
+    if (rarity) cards = cards.filter((c) => c.rarity === rarity);
+    const val = (c) => {
+      const e = collection[c.id];
+      return e ? cardPrice(e.card, e.foil) : cardPrice(c, false);
+    };
+    const added = (c) => (collection[c.id] && collection[c.id].addedAt) || 0;
+    cards.sort((a, b) => {
+      switch (sort) {
+        case "name-desc": return b.name.localeCompare(a.name);
+        case "value-desc": return val(b) - val(a);
+        case "value": return val(a) - val(b);
+        case "recent": return added(b) - added(a);
+        default: return a.name.localeCompare(b.name);
+      }
+    });
+
+    const missing = cards.filter((c) => !collection[c.id]).length;
+    setStatus("#collection-status", `${cards.length} carta(s) · ${missing} em falta.`);
+
+    grid.innerHTML = "";
+    cards.forEach((c) => grid.appendChild(
+      collection[c.id] ? collectionCardEl(collection[c.id]) : collectionMissingCardEl(c)
+    ));
+    return;
+  }
+
+  // Default: só as cartas que tens (filtro + raridade + ordenação).
+  if (filter) entries = entries.filter((e) => e.card.name.toLowerCase().includes(filter));
+  if (rarity) entries = entries.filter((e) => e.card.rarity === rarity);
   entries.sort((a, b) => {
     switch (sort) {
       case "name-desc": return b.card.name.localeCompare(a.card.name);
@@ -333,9 +391,36 @@ function renderCollectionDetail() {
 
   $("#collection-status").innerHTML = filter ? `${entries.length} carta(s).` : "";
 
-  const grid = $("#collection-grid");
   grid.innerHTML = "";
   entries.forEach((entry) => grid.appendChild(collectionCardEl(entry)));
+}
+
+// Carta em falta na Coleção (não colecionada): a cinzento, com botão para adicionar.
+function collectionMissingCardEl(card) {
+  const el = document.createElement("div");
+  el.className = "card not-owned";
+  const price = cardPrice(card, false);
+
+  el.innerHTML = `
+    <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
+      <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
+    </div>
+    <div class="card-body">
+      <div class="card-name">${esc(card.name)}</div>
+      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc((card.rarity || "").toUpperCase())}</div>
+      <div class="card-price">${price ? eur(price) : "—"}</div>
+      <div class="card-actions"></div>
+    </div>`;
+
+  const actions = el.querySelector(".card-actions");
+  makeOwnToggle(card, el, actions, () => renderCollection())();
+
+  el.querySelector(".card-img-wrap").addEventListener("click", (e) => {
+    if (e.target.closest(".card-actions")) return;
+    openPreview(el.querySelector(".card-img-wrap").dataset.large);
+  });
+
+  return el;
 }
 
 function collectionCardEl(entry) {
@@ -380,6 +465,27 @@ let editionsState = { setsLoaded: false, loading: false, sets: [], cards: [], se
 
 // Mapa código→set (todos os sets da Scryfall), partilhado por Edições e Coleção.
 let setsByCode = null;
+
+// Cache das cartas de cada set (por código), partilhada por Sets e Coleção —
+// evita voltar a puxar a lista completa da Scryfall ao alternar de vista.
+const setCardsCache = {};
+
+// Puxa TODAS as cartas de um set da Scryfall (percorrendo as páginas).
+async function fetchSetCards(code) {
+  if (setCardsCache[code]) return setCardsCache[code];
+  let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent(`set:${code} unique:prints`)}&order=set`;
+  const all = [];
+  while (url) {
+    const res = await fetch(url);
+    if (res.status === 404) break; // set sem cartas pesquisáveis
+    if (!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+    all.push(...data.data);
+    url = data.has_more ? data.next_page : null;
+  }
+  setCardsCache[code] = all;
+  return all;
+}
 
 // Cache local da lista de sets (não muda quase nunca) — evita puxar ~1 MB a cada visita.
 const SETS_CACHE_KEY = "mtg-sets-cache-v1";
@@ -445,13 +551,13 @@ async function initEditions() {
   if (editionsState.setsLoaded) { renderEditionPicker(); return; }
   if (editionsState.loading) return;
   editionsState.loading = true;
-  setStatus("#edition-status", `<span class="spinner"></span>A carregar edições…`);
+  setStatus("#edition-status", `<span class="spinner"></span>A carregar sets…`);
   try {
     await ensureSets();
     setStatus("#edition-status", "");
     renderEditionPicker();
   } catch (err) {
-    setStatus("#edition-status", `Falha ao carregar edições: ${esc(err.message)}`, true);
+    setStatus("#edition-status", `Falha ao carregar sets: ${esc(err.message)}`, true);
   } finally {
     editionsState.loading = false;
   }
@@ -487,6 +593,7 @@ function openEdition(set) {
   $("#edition-detail").hidden = false;
   $("#edition-title").textContent = set.name;
   $("#edition-missing-only").checked = false;
+  $("#edition-rarity").value = "";
   loadEditionCards(set.code);
 }
 
@@ -499,6 +606,7 @@ $("#edition-back").addEventListener("click", () => {
   renderEditionPicker(); // reflete cartas adicionadas/removidas nesta edição
 });
 $("#edition-missing-only").addEventListener("change", renderEdition);
+$("#edition-rarity").addEventListener("change", renderEdition);
 
 async function loadEditionCards(code) {
   editionsState.setCode = code;
@@ -511,20 +619,9 @@ async function loadEditionCards(code) {
   setStatus("#edition-status", `<span class="spinner"></span>A carregar cartas…`);
 
   try {
-    let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent(`set:${code} unique:prints`)}&order=set`;
-    const all = [];
-    // Percorre todas as páginas do set.
-    while (url) {
-      const res = await fetch(url);
-      if (res.status === 404) break; // set sem cartas pesquisáveis
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      const data = await res.json();
-      all.push(...data.data);
-      url = data.has_more ? data.next_page : null;
-      // Guarda o set atual — evita render de resultados antigos se o utilizador trocar de set.
-      if (editionsState.setCode !== code) return;
-    }
-
+    const all = await fetchSetCards(code);
+    // Evita render de resultados antigos se o utilizador trocar de set entretanto.
+    if (editionsState.setCode !== code) return;
     editionsState.cards = all;
     setStatus("#edition-status", "");
     renderEdition();
@@ -544,12 +641,15 @@ function renderEdition() {
   const total = cards.length;
   const pct = total ? Math.round((owned / total) * 100) : 0;
   $("#edition-stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Cartas na edição</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
+    <div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
     <div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${owned.toLocaleString("pt-PT")}</div></div>
     <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`;
 
+  const rarity = $("#edition-rarity").value;
   const missingOnly = $("#edition-missing-only").checked;
-  const list = missingOnly ? cards.filter((c) => !collection[c.id]) : cards;
+  let list = cards;
+  if (rarity) list = list.filter((c) => c.rarity === rarity);
+  if (missingOnly) list = list.filter((c) => !collection[c.id]);
 
   grid.innerHTML = "";
   list.forEach((card) => grid.appendChild(editionCardEl(card)));

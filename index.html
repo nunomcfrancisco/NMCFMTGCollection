@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" />
   <link rel="preconnect" href="https://accounts.google.com" />
-  <link rel="stylesheet" href="styles.css?v=12" />
+  <link rel="stylesheet" href="styles.css?v=14" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
@@ -20,7 +20,7 @@
     <div class="topbar-inner">
       <h1 class="brand">🃏 A Minha Coleção <span>Magic</span></h1>
       <nav class="tabs" role="tablist">
-        <button class="tab" data-view="editions" role="tab">Edições</button>
+        <button class="tab" data-view="editions" role="tab">Sets</button>
         <button class="tab active" data-view="collection" role="tab">Coleção</button>
       </nav>
       <div id="auth-area" class="auth-area"></div>
@@ -32,19 +32,26 @@
     <section id="view-editions" class="view">
       <!-- Seletor de edições (grelha de símbolos) -->
       <div id="edition-picker">
-        <p class="hint">Escolhe uma edição pelo símbolo. A percentagem indica quantas cartas dessa edição já tens.</p>
-        <input id="edition-search" type="search" placeholder="Filtrar edições…" aria-label="Filtrar edições" />
+        <p class="hint">Escolhe um set pelo símbolo. A percentagem indica quantas cartas desse set já tens.</p>
+        <input id="edition-search" type="search" placeholder="Filtrar sets…" aria-label="Filtrar sets" />
         <div id="edition-sets" class="set-grid"></div>
       </div>
 
       <!-- Detalhe da edição escolhida -->
       <div id="edition-detail" hidden>
         <div class="edition-detail-bar">
-          <button id="edition-back" class="btn btn-sm">← Todas as edições</button>
+          <button id="edition-back" class="btn btn-sm">← Todos os sets</button>
           <label class="check-inline">
             <input type="checkbox" id="edition-missing-only" />
             Mostrar apenas as que faltam
           </label>
+          <select id="edition-rarity" class="rarity-filter" aria-label="Filtrar por raridade">
+            <option value="">Todas as raridades</option>
+            <option value="common">Comum</option>
+            <option value="uncommon">Incomum</option>
+            <option value="rare">Rara</option>
+            <option value="mythic">Mítica</option>
+          </select>
         </div>
         <h2 id="edition-title" class="edition-title"></h2>
         <div id="edition-stats" class="stats"></div>
@@ -67,6 +74,13 @@
           <option value="value">Valor (menor)</option>
           <option value="recent">Adicionadas recentemente</option>
         </select>
+        <select id="collection-rarity" aria-label="Filtrar por raridade">
+          <option value="">Todas as raridades</option>
+          <option value="common">Comum</option>
+          <option value="uncommon">Incomum</option>
+          <option value="rare">Rara</option>
+          <option value="mythic">Mítica</option>
+        </select>
         <div class="spacer"></div>
         <button id="export-btn" class="btn">Exportar</button>
         <button id="import-btn" class="btn">Importar JSON</button>
@@ -86,7 +100,11 @@
       <!-- Detalhe: as tuas cartas de uma edição -->
       <div id="collection-detail" hidden>
         <div class="edition-detail-bar">
-          <button id="collection-back" class="btn btn-sm">← Todas as edições</button>
+          <button id="collection-back" class="btn btn-sm">← Todos os sets</button>
+          <label class="check-inline">
+            <input type="checkbox" id="collection-show-missing" />
+            Mostrar cartas em falta
+          </label>
         </div>
         <h2 id="collection-set-title" class="edition-title"></h2>
         <div id="collection-set-stats" class="stats"></div>
@@ -110,8 +128,8 @@
     </p>
   </footer>
 
-  <script src="config.js?v=12"></script>
-  <script src="app.js?v=12"></script>
-  <script src="auth.js?v=12" type="module"></script>
+  <script src="config.js?v=14"></script>
+  <script src="app.js?v=14"></script>
+  <script src="auth.js?v=14" type="module"></script>
 </body>
 </html>
