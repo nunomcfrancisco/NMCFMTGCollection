@@ -534,22 +534,32 @@ async function importMoxfieldCSV(text) {
   const iEdition = col("edition");
   const iNumber = col("collector number");
   const iFoil = col("foil");
+  const iProxy = col("proxy");
   if (iEdition === -1 || iNumber === -1) {
     throw new Error("Não parece um CSV do Moxfield (faltam colunas Edition / Collector Number).");
   }
 
   // Constrói identificadores set+collector_number e memoriza o foil de cada um.
+  // Ignora cartas marcadas como Proxy (playtest/proxies usadas para jogar).
   const items = [];
   const foilByKey = {};
+  let skippedProxy = 0;
   for (const r of rows.slice(1)) {
     const set = (r[iEdition] || "").trim().toLowerCase();
     const number = (r[iNumber] || "").trim();
     if (!set || !number) continue;
+    if (iProxy !== -1 && /^(true|yes|1)$/i.test((r[iProxy] || "").trim())) { skippedProxy++; continue; }
     const foil = iFoil !== -1 && /foil|etched/i.test((r[iFoil] || "").trim());
     items.push({ set, collector_number: number });
     foilByKey[`${set}|${number}`] = foil;
   }
-  if (!items.length) throw new Error("Nenhuma carta válida encontrada no CSV.");
+  if (!items.length) {
+    throw new Error(
+      skippedProxy
+        ? `Nenhuma carta válida — as ${skippedProxy} cartas do CSV são proxies (playtest).`
+        : "Nenhuma carta válida encontrada no CSV."
+    );
+  }
 
   let imported = 0, notFound = 0;
   const batchSize = 75; // limite da Scryfall
@@ -577,6 +587,7 @@ async function importMoxfieldCSV(text) {
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
   setStatus("#collection-status",
     `Importadas ${imported} carta(s) do Moxfield.` +
+    (skippedProxy ? ` ${skippedProxy} proxy(s) ignorada(s).` : "") +
     (notFound ? ` ${notFound} não foram encontradas na Scryfall.` : ""));
 }
 
