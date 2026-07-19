@@ -53,6 +53,14 @@ a { color: var(--accent-hi); }
 .brand span { color: var(--accent); }
 
 .tabs { display: flex; gap: 6px; margin-left: auto; }
+
+/* ===== Área de autenticação ===== */
+.auth-area { display: flex; align-items: center; gap: 8px; }
+.auth-email {
+  color: var(--accent-hi); font-size: 0.85rem; font-weight: 600;
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.auth-note { color: var(--text-dim); font-size: 0.8rem; }
 .tab {
   background: transparent;
   border: 1px solid transparent;

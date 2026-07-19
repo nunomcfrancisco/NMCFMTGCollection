@@ -35,6 +35,33 @@ automaticamente. Só precisas de ativar o Pages uma vez:
 3. Faz push para o branch principal — a app fica em
    `https://<utilizador>.github.io/<repositorio>/`.
 
+## Sincronização na nuvem (opcional, grátis)
+
+Por defeito a coleção vive só no browser. Para a sincronizares entre
+dispositivos (PC, telemóvel…), ativa o [Supabase](https://supabase.com) —
+plano gratuito, sem cartão de crédito:
+
+1. Cria uma conta em <https://supabase.com> e um **New project** (grátis).
+2. Vai a **SQL Editor**, cola o conteúdo de [`supabase-setup.sql`](supabase-setup.sql) e clica em **Run** (cria a tabela e as regras de segurança).
+3. Vai a **Settings → API** e copia o **Project URL** e a **anon public key**.
+4. Cola-os no ficheiro [`config.js`](config.js):
+   ```js
+   window.SUPABASE_CONFIG = {
+     url: "https://xxxx.supabase.co",
+     anonKey: "eyJhbGci...",
+   };
+   ```
+5. (Opcional) Em **Authentication → URL Configuration**, adiciona o URL da tua
+   app (ex.: `https://<utilizador>.github.io/<repo>/`) aos *Redirect URLs*.
+
+Feito isto, aparece um botão **☁️ Entrar / Sincronizar** no topo. Entras com o
+email (recebes um link mágico, sem password) e a coleção passa a sincronizar
+automaticamente. A `anon key` é pública por design — a segurança é garantida
+pelas *Row Level Security policies* do `supabase-setup.sql`, que impedem cada
+utilizador de ver dados dos outros.
+
+> Sem configurares nada, a app continua a funcionar em **modo local** (badge 💾 Local).
+
 ## Notas
 
 - Os preços são estimativas da Scryfall e mudam ao longo do tempo.

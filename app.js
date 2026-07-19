@@ -26,7 +26,20 @@ function loadCollection() {
 
 function saveCollection() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(collection));
+  // Avisa a camada de sync (auth.js) que houve alterações locais.
+  window.dispatchEvent(new CustomEvent("collection-changed"));
 }
+
+/* ---------- Ponte para a sincronização na nuvem (auth.js) ---------- */
+// Devolve a coleção atual (usada ao enviar para a nuvem / ao fazer merge).
+window.getCollection = () => collection;
+
+// Substitui a coleção com dados vindos da nuvem, sem re-disparar o push.
+window.applyRemoteCollection = (data) => {
+  collection = data && typeof data === "object" && !Array.isArray(data) ? data : {};
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(collection));
+  renderCollection();
+};
 
 function eur(value) {
   return new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(value || 0);
