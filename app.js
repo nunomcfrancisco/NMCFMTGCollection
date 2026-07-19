@@ -189,6 +189,7 @@ let collectionView = { setCode: null };
 
 $("#collection-filter").addEventListener("input", renderCollection);
 $("#collection-sort").addEventListener("change", renderCollection);
+$("#collection-rarity").addEventListener("change", renderCollection);
 $("#collection-back").addEventListener("click", () => {
   collectionView.setCode = null;
   renderCollection();
@@ -212,7 +213,7 @@ function renderCollection() {
     $("#collection-sets").innerHTML = `
       <div class="empty" style="grid-column: 1 / -1;">
         <h3>A tua coleção está vazia</h3>
-        <p>Vai a <strong>Edições</strong>, escolhe um set e marca as cartas que tens, ou usa <strong>Importar</strong>.</p>
+        <p>Vai aos <strong>Sets</strong>, escolhe um set e marca as cartas que tens, ou usa <strong>Importar</strong>.</p>
       </div>`;
     return;
   }
@@ -270,8 +271,8 @@ function renderCollectionPicker() {
   });
 
   $("#collection-status").innerHTML = filter
-    ? `${codes.length} edição(ões).`
-    : (setsByCode ? "" : `<span class="spinner"></span>A carregar edições…`);
+    ? `${codes.length} set(s).`
+    : (setsByCode ? "" : `<span class="spinner"></span>A carregar sets…`);
 
   const grid = $("#collection-sets");
   grid.innerHTML = "";
@@ -313,13 +314,15 @@ function renderCollectionDetail() {
   $("#collection-set-stats").innerHTML =
     `<div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${owned.toLocaleString("pt-PT")}</div></div>` +
     (total
-      ? `<div class="stat"><div class="stat-label">Cartas na edição</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
+      ? `<div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
          <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`
       : "");
 
-  // Filtro + ordenação das cartas
+  // Filtro + raridade + ordenação das cartas
   const filter = $("#collection-filter").value.trim().toLowerCase();
   if (filter) entries = entries.filter((e) => e.card.name.toLowerCase().includes(filter));
+  const rarity = $("#collection-rarity").value;
+  if (rarity) entries = entries.filter((e) => e.card.rarity === rarity);
   const sort = $("#collection-sort").value;
   entries.sort((a, b) => {
     switch (sort) {
@@ -445,13 +448,13 @@ async function initEditions() {
   if (editionsState.setsLoaded) { renderEditionPicker(); return; }
   if (editionsState.loading) return;
   editionsState.loading = true;
-  setStatus("#edition-status", `<span class="spinner"></span>A carregar edições…`);
+  setStatus("#edition-status", `<span class="spinner"></span>A carregar sets…`);
   try {
     await ensureSets();
     setStatus("#edition-status", "");
     renderEditionPicker();
   } catch (err) {
-    setStatus("#edition-status", `Falha ao carregar edições: ${esc(err.message)}`, true);
+    setStatus("#edition-status", `Falha ao carregar sets: ${esc(err.message)}`, true);
   } finally {
     editionsState.loading = false;
   }
@@ -487,6 +490,7 @@ function openEdition(set) {
   $("#edition-detail").hidden = false;
   $("#edition-title").textContent = set.name;
   $("#edition-missing-only").checked = false;
+  $("#edition-rarity").value = "";
   loadEditionCards(set.code);
 }
 
@@ -499,6 +503,7 @@ $("#edition-back").addEventListener("click", () => {
   renderEditionPicker(); // reflete cartas adicionadas/removidas nesta edição
 });
 $("#edition-missing-only").addEventListener("change", renderEdition);
+$("#edition-rarity").addEventListener("change", renderEdition);
 
 async function loadEditionCards(code) {
   editionsState.setCode = code;
@@ -544,12 +549,15 @@ function renderEdition() {
   const total = cards.length;
   const pct = total ? Math.round((owned / total) * 100) : 0;
   $("#edition-stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Cartas na edição</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
+    <div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
     <div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${owned.toLocaleString("pt-PT")}</div></div>
     <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`;
 
+  const rarity = $("#edition-rarity").value;
   const missingOnly = $("#edition-missing-only").checked;
-  const list = missingOnly ? cards.filter((c) => !collection[c.id]) : cards;
+  let list = cards;
+  if (rarity) list = list.filter((c) => c.rarity === rarity);
+  if (missingOnly) list = list.filter((c) => !collection[c.id]);
 
   grid.innerHTML = "";
   list.forEach((card) => grid.appendChild(editionCardEl(card)));
