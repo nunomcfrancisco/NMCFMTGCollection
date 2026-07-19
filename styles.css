@@ -51,6 +51,11 @@ a { color: var(--accent-hi); }
   letter-spacing: 0.3px;
 }
 .brand span { color: var(--accent); }
+.brand-icon {
+  height: 1.4em; width: auto; vertical-align: -0.32em;
+  /* Logo Magic é preto → força branco no tema escuro (igual aos símbolos). */
+  filter: brightness(0) invert(1);
+}
 
 .tabs { display: flex; gap: 6px; margin-left: auto; }
 
