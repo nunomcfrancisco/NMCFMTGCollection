@@ -16,6 +16,7 @@
       <h1 class="brand">🃏 A Minha Coleção <span>Magic</span></h1>
       <nav class="tabs" role="tablist">
         <button class="tab active" data-view="search" role="tab">Procurar</button>
+        <button class="tab" data-view="editions" role="tab">Edições</button>
         <button class="tab" data-view="collection" role="tab">Coleção</button>
       </nav>
       <div id="auth-area" class="auth-area"></div>
@@ -38,6 +39,23 @@
       <div id="search-status" class="status" aria-live="polite"></div>
       <div id="search-results" class="card-grid"></div>
       <div id="search-more" class="load-more"></div>
+    </section>
+
+    <!-- ===== VISTA: EDIÇÕES ===== -->
+    <section id="view-editions" class="view">
+      <div class="editions-toolbar">
+        <select id="edition-select" aria-label="Escolher edição">
+          <option value="">A carregar edições…</option>
+        </select>
+        <label class="check-inline">
+          <input type="checkbox" id="edition-missing-only" />
+          Mostrar apenas as que faltam
+        </label>
+      </div>
+      <p class="hint">Escolhe uma edição para veres todas as cartas. As que ainda não tens aparecem a preto e branco.</p>
+      <div id="edition-stats" class="stats"></div>
+      <div id="edition-status" class="status" aria-live="polite"></div>
+      <div id="edition-grid" class="card-grid"></div>
     </section>
 
     <!-- ===== VISTA: COLEÇÃO ===== -->

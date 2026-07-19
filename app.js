@@ -39,6 +39,8 @@ window.applyRemoteCollection = (data) => {
   collection = data && typeof data === "object" && !Array.isArray(data) ? data : {};
   localStorage.setItem(STORAGE_KEY, JSON.stringify(collection));
   renderCollection();
+  // Se a vista de edições já tem cartas carregadas, atualiza o grayscale/estatísticas.
+  if (editionsState.cards.length) renderEdition();
 };
 
 function eur(value) {
@@ -84,6 +86,7 @@ $$(".tab").forEach((tab) => {
     const view = tab.dataset.view;
     $(`#view-${view}`).classList.add("active");
     if (view === "collection") renderCollection();
+    if (view === "editions") initEditions();
   });
 });
 
@@ -316,6 +319,161 @@ function collectionCardEl(entry) {
   });
 
   return el;
+}
+
+/* ============================================================
+   EDIÇÕES — escolher um set e ver todas as cartas
+   (as que não estão na coleção aparecem em grayscale)
+   ============================================================ */
+let editionsState = { setsLoaded: false, loading: false, cards: [], setCode: "" };
+
+async function initEditions() {
+  if (editionsState.setsLoaded || editionsState.loading) return;
+  editionsState.loading = true;
+  setStatus("#edition-status", `<span class="spinner"></span>A carregar edições…`);
+  try {
+    const res = await fetch(`${SCRYFALL}/sets`);
+    if (!res.ok) throw new Error(`Erro ${res.status}`);
+    const data = await res.json();
+
+    // Só edições com cartas reais (ignora tokens/memorabilia sem cartas), ordenadas por data.
+    const sets = (data.data || [])
+      .filter((s) => s.card_count > 0 && !s.digital)
+      .sort((a, b) => (b.released_at || "").localeCompare(a.released_at || ""));
+
+    const select = $("#edition-select");
+    select.innerHTML =
+      `<option value="">— Escolhe uma edição —</option>` +
+      sets.map((s) =>
+        `<option value="${esc(s.code)}">${esc(s.name)} (${s.card_count})</option>`
+      ).join("");
+
+    editionsState.setsLoaded = true;
+    setStatus("#edition-status", "");
+  } catch (err) {
+    setStatus("#edition-status", `Falha ao carregar edições: ${esc(err.message)}`, true);
+  } finally {
+    editionsState.loading = false;
+  }
+}
+
+$("#edition-select").addEventListener("change", (e) => loadEditionCards(e.target.value));
+$("#edition-missing-only").addEventListener("change", renderEdition);
+
+async function loadEditionCards(code) {
+  editionsState.setCode = code;
+  editionsState.cards = [];
+  $("#edition-grid").innerHTML = "";
+  $("#edition-stats").innerHTML = "";
+  if (!code) {
+    setStatus("#edition-status", "");
+    return;
+  }
+
+  editionsState.loading = true;
+  setStatus("#edition-status", `<span class="spinner"></span>A carregar cartas…`);
+
+  try {
+    let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent(`set:${code} unique:prints`)}&order=set`;
+    const all = [];
+    // Percorre todas as páginas do set.
+    while (url) {
+      const res = await fetch(url);
+      if (res.status === 404) break; // set sem cartas pesquisáveis
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      const data = await res.json();
+      all.push(...data.data);
+      url = data.has_more ? data.next_page : null;
+      // Guarda o set atual — evita render de resultados antigos se o utilizador trocar de set.
+      if (editionsState.setCode !== code) return;
+    }
+
+    editionsState.cards = all;
+    renderEdition();
+  } catch (err) {
+    setStatus("#edition-status", `Falha ao carregar cartas: ${esc(err.message)}`, true);
+  } finally {
+    editionsState.loading = false;
+  }
+}
+
+function renderEdition() {
+  const grid = $("#edition-grid");
+  const cards = editionsState.cards;
+  if (!cards.length) return;
+
+  const owned = cards.filter((c) => collection[c.id]).length;
+  const total = cards.length;
+  const pct = total ? Math.round((owned / total) * 100) : 0;
+  $("#edition-stats").innerHTML = `
+    <div class="stat"><div class="stat-label">Cartas na edição</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
+    <div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${owned.toLocaleString("pt-PT")}</div></div>
+    <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`;
+
+  const missingOnly = $("#edition-missing-only").checked;
+  const list = missingOnly ? cards.filter((c) => !collection[c.id]) : cards;
+
+  setStatus("#edition-status", missingOnly ? `${list.length} carta(s) em falta.` : "");
+
+  grid.innerHTML = "";
+  list.forEach((card) => grid.appendChild(editionCardEl(card)));
+}
+
+function editionCardEl(card) {
+  const el = document.createElement("div");
+  el.className = "card";
+  const entry = collection[card.id];
+  const qty = entry ? entry.qty : 0;
+  if (!qty) el.classList.add("not-owned");
+  const price = cardPrice(card, false);
+
+  el.innerHTML = `
+    <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
+      <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
+      ${qty ? `<span class="card-qty-badge">×${qty}</span>` : ""}
+    </div>
+    <div class="card-body">
+      <div class="card-name">${esc(card.name)}</div>
+      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc((card.rarity || "").toUpperCase())}</div>
+      <div class="card-price">${price ? eur(price) : "—"}</div>
+      <div class="card-actions">
+        <button class="btn btn-primary btn-sm add-btn">+ Adicionar</button>
+      </div>
+    </div>`;
+
+  el.querySelector(".add-btn").addEventListener("click", () => {
+    addToCollection(card);
+    const newQty = collection[card.id].qty;
+    el.classList.remove("not-owned");
+    const badge = el.querySelector(".card-qty-badge");
+    if (badge) badge.textContent = `×${newQty}`;
+    else el.querySelector(".card-img-wrap").insertAdjacentHTML(
+      "beforeend", `<span class="card-qty-badge">×${newQty}</span>`);
+    // Atualiza as estatísticas (e a vista "só em falta", se ativa).
+    if ($("#edition-missing-only").checked) renderEdition();
+    else refreshEditionStats();
+  });
+
+  el.querySelector(".card-img-wrap").addEventListener("click", (e) => {
+    if (e.target.classList.contains("add-btn")) return;
+    openPreview(el.querySelector(".card-img-wrap").dataset.large);
+  });
+
+  return el;
+}
+
+function refreshEditionStats() {
+  const cards = editionsState.cards;
+  if (!cards.length) return;
+  const owned = cards.filter((c) => collection[c.id]).length;
+  const total = cards.length;
+  const pct = total ? Math.round((owned / total) * 100) : 0;
+  const stats = $("#edition-stats");
+  const values = stats.querySelectorAll(".stat-value");
+  if (values.length === 3) {
+    values[1].textContent = owned.toLocaleString("pt-PT");
+    values[2].textContent = `${pct}%`;
+  }
 }
 
 /* ============================================================
