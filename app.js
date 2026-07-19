@@ -249,6 +249,13 @@ function collectionBySet() {
   return bySet;
 }
 
+// Compara números de colecionador ("1", "2", "10", "12a", "★123") de forma
+// natural (numérica quando possível). asc = crescente.
+function cmpCollector(a, b, asc = true) {
+  const r = String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true, sensitivity: "base" });
+  return asc ? r : -r;
+}
+
 function setDisplayName(code, fallbackEntry) {
   return (setsByCode && setsByCode[code] && setsByCode[code].name) ||
     (fallbackEntry && fallbackEntry.card.set_name) || code.toUpperCase();
@@ -361,6 +368,8 @@ function renderCollectionDetail() {
         case "name-desc": return b.name.localeCompare(a.name);
         case "value-desc": return val(b) - val(a);
         case "value": return val(a) - val(b);
+        case "number": return cmpCollector(a.collector_number, b.collector_number, true);
+        case "number-desc": return cmpCollector(a.collector_number, b.collector_number, false);
         case "recent": return added(b) - added(a);
         default: return a.name.localeCompare(b.name);
       }
@@ -384,6 +393,8 @@ function renderCollectionDetail() {
       case "name-desc": return b.card.name.localeCompare(a.card.name);
       case "value-desc": return cardPrice(b.card, b.foil) - cardPrice(a.card, a.foil);
       case "value": return cardPrice(a.card, a.foil) - cardPrice(b.card, b.foil);
+      case "number": return cmpCollector(a.card.collector_number, b.card.collector_number, true);
+      case "number-desc": return cmpCollector(a.card.collector_number, b.card.collector_number, false);
       case "recent": return (b.addedAt || 0) - (a.addedAt || 0);
       default: return a.card.name.localeCompare(b.card.name);
     }
