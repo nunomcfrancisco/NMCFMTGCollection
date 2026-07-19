@@ -8,8 +8,8 @@ Web app **grátis** para gerir a tua coleção de *Magic: The Gathering*.
 
 ## Funcionalidades
 
-- 🔍 Procurar cartas com a sintaxe da Scryfall (`t:dragon`, `c:red cmc<=3`, `set:mh3`, …)
-- ➕ Adicionar cartas à coleção com quantidade e marca de *foil*
+- 🗂️ Percorrer **edições** (sets) e marcar as cartas que tens (as que faltam ficam a cinzento)
+- ➕ Adicionar cartas à coleção com marca de *foil*
 - 📊 Estatísticas: total de cartas, cartas únicas e valor estimado (em EUR)
 - 🔃 Filtrar e ordenar (nome, valor, quantidade, recentes)
 - 💾 Exportar / importar a coleção em JSON (backup e migração entre dispositivos)
