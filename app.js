@@ -1,54 +1,39 @@
 /* ============================================================
    A Minha Coleção Magic
    - Dados/imagens: API pública da Scryfall (sem chave)
-   - Persistência: localStorage (+ export/import JSON)
+   - Persistência: base de dados (Supabase) — ver auth.js.
+     O localStorage é só uma cache offline gerida pela camada de dados.
    ============================================================ */
 
-const STORAGE_KEY = "mtg-collection-v1";
 const SCRYFALL = "https://api.scryfall.com";
 
 /* ---------- Estado ---------- */
 // collection = { [cardId]: { qty, foil, card } }
-let collection = loadCollection();
+// Arranca vazia; a camada de dados (auth.js) carrega-a da base de dados
+// assim que houver sessão iniciada.
+let collection = {};
 let searchState = { query: "", nextPage: null, loading: false };
 
 /* ---------- Utilitários ---------- */
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
-function loadCollection() {
-  try {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-    // Regra: no máximo 1 cópia de cada carta. Normaliza dados antigos (qty > 1).
-    let changed = false;
-    for (const entry of Object.values(data)) {
-      if (entry && entry.qty > 1) { entry.qty = 1; changed = true; }
-    }
-    if (changed) localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    return data;
-  } catch {
-    return {};
-  }
-}
+/* ---------- Persistência (delegada à camada de dados / auth.js) ---------- */
+// Marca uma ou mais cartas como alteradas para serem gravadas na base de dados.
+function persist(id) { window.Storage && window.Storage.touch(id); }
+function persistMany(ids) { window.Storage && window.Storage.touchAll(ids); }
 
-function saveCollection() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(collection));
-  // Avisa a camada de sync (auth.js) que houve alterações locais.
-  window.dispatchEvent(new CustomEvent("collection-changed"));
-}
-
-/* ---------- Ponte para a sincronização na nuvem (auth.js) ---------- */
-// Devolve a coleção atual (usada ao enviar para a nuvem / ao fazer merge).
+/* ---------- Ponte com a camada de dados (auth.js) ---------- */
+// Devolve a coleção atual (usada ao gravar na base de dados).
 window.getCollection = () => collection;
 
-// Substitui a coleção com dados vindos da nuvem, sem re-disparar o push.
+// Substitui a coleção com os dados vindos da base de dados (não re-grava).
 window.applyRemoteCollection = (data) => {
   collection = data && typeof data === "object" && !Array.isArray(data) ? data : {};
-  // Aplica a regra de 1 cópia máxima a dados vindos da nuvem.
+  // Aplica a regra de 1 cópia máxima.
   for (const entry of Object.values(collection)) {
     if (entry && entry.qty > 1) entry.qty = 1;
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(collection));
   renderCollection();
   // Atualiza a vista de edições (grelha de sets e/ou detalhe da edição aberta).
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
@@ -215,13 +200,13 @@ function addToCollection(card, foil = false) {
       card: slimCard(card),
     };
   }
-  saveCollection();
+  persist(id);
 }
 
 function removeFromCollection(id) {
   if (!collection[id]) return;
   delete collection[id];
-  saveCollection();
+  persist(id);
 }
 
 // Guarda apenas os campos necessários para não encher o localStorage
@@ -244,7 +229,7 @@ function slimCard(card) {
 function toggleFoil(id) {
   if (!collection[id]) return;
   collection[id].foil = !collection[id].foil;
-  saveCollection();
+  persist(id);
   renderCollection();
 }
 
@@ -547,6 +532,9 @@ $("#import-file").addEventListener("change", async (e) => {
       "Cancelar = substituir a coleção atual"
     );
 
+    // Ids afetados (antes + depois) para gravar/apagar na base de dados.
+    const affected = new Set(Object.keys(collection));
+
     if (merge) {
       for (const [id, entry] of Object.entries(data)) {
         if (!collection[id]) collection[id] = entry;
@@ -558,7 +546,8 @@ $("#import-file").addEventListener("change", async (e) => {
     for (const entry of Object.values(collection)) {
       if (entry && entry.qty > 1) entry.qty = 1;
     }
-    saveCollection();
+    Object.keys(collection).forEach((id) => affected.add(id));
+    persistMany([...affected]);
     renderCollection();
     setStatus("#collection-status", "Coleção importada com sucesso.");
   } catch (err) {
