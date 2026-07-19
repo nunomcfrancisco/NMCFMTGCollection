@@ -180,9 +180,9 @@ function renderCollection() {
   if (unique === 0) {
     $("#collection-status").innerHTML = "";
     grid.innerHTML = `
-      <div class="empty" style="grid-column: 1 / -1;">
+      <div class="empty">
         <h3>A tua coleção está vazia</h3>
-        <p>Vai a <strong>Procurar</strong>, encontra cartas e clica em “+ Adicionar”.</p>
+        <p>Vai a <strong>Edições</strong>, escolhe um set e marca as cartas que tens, ou usa <strong>Importar</strong>.</p>
       </div>`;
     return;
   }
@@ -194,9 +194,9 @@ function renderCollection() {
     e.card.name.toLowerCase().includes(filter) ||
     (e.card.set_name || "").toLowerCase().includes(filter));
 
-  // Ordenar
+  // Ordenar (aplica-se às cartas dentro de cada set)
   const sort = $("#collection-sort").value;
-  list.sort((a, b) => {
+  const sortFn = (a, b) => {
     switch (sort) {
       case "name-desc": return b.card.name.localeCompare(a.card.name);
       case "value-desc": return cardPrice(b.card, b.foil) - cardPrice(a.card, a.foil);
@@ -204,14 +204,53 @@ function renderCollection() {
       case "recent": return (b.addedAt || 0) - (a.addedAt || 0);
       default: return a.card.name.localeCompare(b.card.name);
     }
-  });
+  };
 
   $("#collection-status").innerHTML = filter
     ? `${list.length} de ${unique} cartas únicas.`
     : "";
 
+  // Agrupar por set (edição)
+  const groups = {};
+  for (const e of list) {
+    const code = e.card.set || "?";
+    (groups[code] ||= []).push(e);
+  }
+
+  // Ordenar os sets: por data de lançamento (mais recente primeiro), depois nome.
+  const setName = (code) =>
+    (setsByCode && setsByCode[code] && setsByCode[code].name) ||
+    groups[code][0].card.set_name || code.toUpperCase();
+  const codes = Object.keys(groups).sort((a, b) => {
+    const da = (setsByCode && setsByCode[a] && setsByCode[a].released_at) || "";
+    const db = (setsByCode && setsByCode[b] && setsByCode[b].released_at) || "";
+    if (da !== db) return db.localeCompare(da);
+    return setName(a).localeCompare(setName(b));
+  });
+
   grid.innerHTML = "";
-  list.forEach((entry) => grid.appendChild(collectionCardEl(entry)));
+  for (const code of codes) {
+    const meta = setsByCode && setsByCode[code];
+    const owned = ownedInSet(code);           // total na coleção deste set (sem filtro)
+    const total = meta ? meta.card_count : 0;
+    const pct = total ? Math.round((owned / total) * 100) : null;
+
+    const header = document.createElement("div");
+    header.className = "collection-set-header";
+    header.innerHTML = `
+      <img class="set-symbol" loading="lazy" src="${esc(meta ? meta.icon_svg_uri || "" : "")}" alt="" />
+      <span class="cs-name">${esc(setName(code))}</span>
+      <span class="cs-pct">${pct === null ? `${owned} carta(s)` : `${owned}/${total} · ${pct}%`}</span>`;
+    grid.appendChild(header);
+
+    const sub = document.createElement("div");
+    sub.className = "card-grid";
+    groups[code].sort(sortFn).forEach((entry) => sub.appendChild(collectionCardEl(entry)));
+    grid.appendChild(sub);
+  }
+
+  // Se ainda não temos os símbolos/percentagens dos sets, carrega e re-renderiza.
+  if (!setsByCode) ensureSets().then(renderCollection).catch(() => {});
 }
 
 function collectionCardEl(entry) {
@@ -254,6 +293,32 @@ function collectionCardEl(entry) {
    ============================================================ */
 let editionsState = { setsLoaded: false, loading: false, sets: [], cards: [], setCode: "" };
 
+// Mapa código→set (todos os sets da Scryfall), partilhado por Edições e Coleção.
+let setsByCode = null;
+
+// Carrega a lista de sets da Scryfall uma única vez (partilhada entre vistas).
+async function ensureSets() {
+  if (setsByCode) return setsByCode;
+  if (!ensureSets._p) {
+    ensureSets._p = (async () => {
+      const res = await fetch(`${SCRYFALL}/sets`);
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      const data = await res.json();
+      const list = data.data || [];
+      const map = {};
+      for (const s of list) map[s.code] = s;
+      setsByCode = map;
+      // Alimenta também a grelha das Edições (só sets com cartas reais).
+      editionsState.sets = list
+        .filter((s) => s.card_count > 0 && !s.digital)
+        .sort((a, b) => (b.released_at || "").localeCompare(a.released_at || ""));
+      editionsState.setsLoaded = true;
+      return map;
+    })();
+  }
+  return ensureSets._p;
+}
+
 // Nº de cartas na coleção pertencentes a um dado código de set.
 function ownedInSet(code) {
   let n = 0;
@@ -264,20 +329,12 @@ function ownedInSet(code) {
 }
 
 async function initEditions() {
-  if (editionsState.setsLoaded || editionsState.loading) return;
+  if (editionsState.setsLoaded) { renderEditionPicker(); return; }
+  if (editionsState.loading) return;
   editionsState.loading = true;
   setStatus("#edition-status", `<span class="spinner"></span>A carregar edições…`);
   try {
-    const res = await fetch(`${SCRYFALL}/sets`);
-    if (!res.ok) throw new Error(`Erro ${res.status}`);
-    const data = await res.json();
-
-    // Só edições com cartas reais (ignora tokens/memorabilia sem cartas), ordenadas por data.
-    editionsState.sets = (data.data || [])
-      .filter((s) => s.card_count > 0 && !s.digital)
-      .sort((a, b) => (b.released_at || "").localeCompare(a.released_at || ""));
-
-    editionsState.setsLoaded = true;
+    await ensureSets();
     setStatus("#edition-status", "");
     renderEditionPicker();
   } catch (err) {
