@@ -12,8 +12,10 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" />
   <link rel="preconnect" href="https://accounts.google.com" />
-  <link rel="stylesheet" href="styles.css?v=14" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%83%8F%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css?v=15" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=15" />
+  <link rel="alternate icon" href="icon.png?v=15" />
+  <link rel="apple-touch-icon" href="icon.png?v=15" />
 </head>
 <body>
   <header class="topbar">
@@ -72,6 +74,8 @@
           <option value="name-desc">Nome (Z→A)</option>
           <option value="value-desc">Valor (maior)</option>
           <option value="value">Valor (menor)</option>
+          <option value="number">Nº do set (1→∞)</option>
+          <option value="number-desc">Nº do set (∞→1)</option>
           <option value="recent">Adicionadas recentemente</option>
         </select>
         <select id="collection-rarity" aria-label="Filtrar por raridade">
@@ -128,8 +132,8 @@
     </p>
   </footer>
 
-  <script src="config.js?v=14"></script>
-  <script src="app.js?v=14"></script>
-  <script src="auth.js?v=14" type="module"></script>
+  <script src="config.js?v=15"></script>
+  <script src="app.js?v=15"></script>
+  <script src="auth.js?v=15" type="module"></script>
 </body>
 </html>
