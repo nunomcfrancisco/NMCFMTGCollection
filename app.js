@@ -346,7 +346,7 @@ function collectionCardEl(entry) {
 
   el.innerHTML = `
     <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
-      <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
+      <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
       ${foil ? `<span class="card-foil-badge">FOIL</span>` : ""}
     </div>
     <div class="card-body">
@@ -381,15 +381,43 @@ let editionsState = { setsLoaded: false, loading: false, sets: [], cards: [], se
 // Mapa código→set (todos os sets da Scryfall), partilhado por Edições e Coleção.
 let setsByCode = null;
 
-// Carrega a lista de sets da Scryfall uma única vez (partilhada entre vistas).
+// Cache local da lista de sets (não muda quase nunca) — evita puxar ~1 MB a cada visita.
+const SETS_CACHE_KEY = "mtg-sets-cache-v1";
+const SETS_TTL = 24 * 60 * 60 * 1000; // 1 dia
+
+function readSetsCache(ignoreAge) {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SETS_CACHE_KEY));
+    if (raw && Array.isArray(raw.list) && (ignoreAge || Date.now() - raw.ts < SETS_TTL)) return raw.list;
+  } catch {}
+  return null;
+}
+function writeSetsCache(list) {
+  try { localStorage.setItem(SETS_CACHE_KEY, JSON.stringify({ ts: Date.now(), list })); } catch {}
+}
+
+// Carrega a lista de sets uma única vez (partilhada entre vistas), usando cache local.
 async function ensureSets() {
   if (setsByCode) return setsByCode;
   if (!ensureSets._p) {
     ensureSets._p = (async () => {
-      const res = await fetch(`${SCRYFALL}/sets`);
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      const data = await res.json();
-      const list = data.data || [];
+      let list = readSetsCache(false); // cache fresca (< 1 dia)?
+      if (!list) {
+        try {
+          const res = await fetch(`${SCRYFALL}/sets`);
+          if (!res.ok) throw new Error(`Erro ${res.status}`);
+          const data = await res.json();
+          // Guarda só os campos usados, para a cache ser pequena.
+          list = (data.data || []).map((s) => ({
+            code: s.code, name: s.name, icon_svg_uri: s.icon_svg_uri,
+            card_count: s.card_count, released_at: s.released_at, digital: s.digital,
+          }));
+          writeSetsCache(list);
+        } catch (err) {
+          list = readSetsCache(true); // sem ligação: usa cache mesmo que velha
+          if (!list) throw err;
+        }
+      }
       const map = {};
       for (const s of list) map[s.code] = s;
       setsByCode = map;
@@ -534,7 +562,7 @@ function editionCardEl(card) {
 
   el.innerHTML = `
     <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
-      <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
+      <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
       <div class="card-name">${esc(card.name)}</div>
