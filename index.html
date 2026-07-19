@@ -71,7 +71,21 @@
       </div>
 
       <div id="collection-status" class="status" aria-live="polite"></div>
-      <div id="collection-grid" class="collection-groups"></div>
+
+      <!-- Grelha de edições que tens na coleção (símbolo + nome + %) -->
+      <div id="collection-picker">
+        <div id="collection-sets" class="set-grid"></div>
+      </div>
+
+      <!-- Detalhe: as tuas cartas de uma edição -->
+      <div id="collection-detail" hidden>
+        <div class="edition-detail-bar">
+          <button id="collection-back" class="btn btn-sm">← Todas as edições</button>
+        </div>
+        <h2 id="collection-set-title" class="edition-title"></h2>
+        <div id="collection-set-stats" class="stats"></div>
+        <div id="collection-grid" class="card-grid"></div>
+      </div>
     </section>
   </main>
 
