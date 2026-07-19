@@ -285,6 +285,23 @@ a { color: var(--accent-hi); }
 .gate-form .btn { width: 100%; justify-content: center; }
 .gate-note { margin: 14px 0 0; font-size: 0.82rem; }
 
+/* Botão "Entrar com Google" */
+.btn-google {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  background: #fff; color: #1f1f1f;
+  border: 1px solid #dadce0; border-radius: 10px;
+  font-size: 0.95rem; font-weight: 600; cursor: pointer;
+}
+.btn-google:hover { background: #f4f4f4; }
+.btn-google .g-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: conic-gradient(from -45deg, #ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0);
+  color: #fff; font-weight: 800; font-size: 0.8rem; line-height: 1;
+}
+
 /* ===== Spinner ===== */
 .spinner {
   display: inline-block; width: 16px; height: 16px; vertical-align: -3px; margin-right: 8px;
