@@ -1,15 +1,23 @@
 /* ============================================================
-   Configuração da base de dados (obrigatória, grátis)
+   Configuração do Firebase (obrigatória, grátis)
    ------------------------------------------------------------
-   A coleção é guardada numa base de dados na nuvem (Supabase),
-   não no browser. Cria um projeto grátis em https://supabase.com,
-   corre o supabase-setup.sql e cola aqui o URL e a "anon public
-   key" (Settings → API).
+   A coleção é guardada na base de dados Firestore (Firebase),
+   não no browser. Cria um projeto grátis em
+   https://console.firebase.google.com, adiciona uma "Web app"
+   e cola aqui o objeto de configuração (firebaseConfig).
 
    Sem isto preenchido, a app pede para configurares a base de dados.
    Ver README.md → secção "Base de dados (obrigatória)".
+
+   Nota: estes valores são públicos por design (vão no site). A
+   segurança dos dados vem das Firestore Security Rules
+   (ficheiro firestore.rules).
    ============================================================ */
-window.SUPABASE_CONFIG = {
-  url: "https://gwsbvskkvvgpsmerpcdx.supabase.co",
-  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3c2J2c2trdnZncHNtZXJwY2R4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0NTAwNjAsImV4cCI6MjEwMDAyNjA2MH0.t0sedsMe5tjTHLBSI44a1YxhCkT3v6LB_VWe5qVXzTM",
+window.FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID",
 };

@@ -2,9 +2,9 @@
 
 Web app **grátis** para gerir a tua coleção de *Magic: The Gathering*.
 
-- **Grátis:** interface no GitHub Pages + base de dados no plano gratuito do [Supabase](https://supabase.com).
-- **Sem chaves de API:** os dados e imagens das cartas vêm da [Scryfall](https://scryfall.com).
-- **Na nuvem:** a coleção é guardada numa **base de dados** (uma linha por carta), não no browser. Entras com o teu email e tens a mesma coleção em qualquer dispositivo. O browser guarda apenas uma cache para funcionar offline.
+- **Grátis:** interface no GitHub Pages + base de dados no plano gratuito do [Firebase](https://firebase.google.com) (Firestore).
+- **Sem chaves de API de cartas:** os dados e imagens das cartas vêm da [Scryfall](https://scryfall.com).
+- **Na nuvem:** a coleção é guardada no **Firestore** (uma *document* por carta), não no browser. Entras com a tua conta **Google** e tens a mesma coleção em qualquer dispositivo, com sincronização em tempo real. O Firestore trata da cache offline.
 
 ## Funcionalidades
 
@@ -17,30 +17,36 @@ Web app **grátis** para gerir a tua coleção de *Magic: The Gathering*.
 
 ## Base de dados (obrigatória)
 
-A coleção vive numa base de dados no [Supabase](https://supabase.com) — plano
-gratuito, sem cartão de crédito. Configura uma vez:
+A coleção vive no **Firestore** do [Firebase](https://firebase.google.com) — plano
+gratuito (*Spark*), sem cartão de crédito. Configura uma vez:
 
-1. Cria uma conta em <https://supabase.com> e um **New project** (grátis).
-2. Vai a **SQL Editor**, cola o conteúdo de [`supabase-setup.sql`](supabase-setup.sql) e clica em **Run** (cria a tabela `collection_cards` e as regras de segurança).
-3. Vai a **Settings → API** e copia o **Project URL** e a **anon public key**.
-4. Cola-os no ficheiro [`config.js`](config.js):
+1. Cria um projeto grátis na [Firebase Console](https://console.firebase.google.com).
+2. **Firestore Database → Create database** (modo *Production*, escolhe uma localização).
+3. Vai ao separador **Rules**, cola o conteúdo de [`firestore.rules`](firestore.rules) e clica em **Publish** (garante que cada utilizador só acede às suas cartas).
+4. **Authentication → Get started → Sign-in method →** ativa o provider **Google**.
+5. **Project settings (⚙️) → General →** em *Your apps*, adiciona uma **Web app** (`</>`) e copia o objeto `firebaseConfig`. Cola-o no ficheiro [`config.js`](config.js):
    ```js
-   window.SUPABASE_CONFIG = {
-     url: "https://xxxx.supabase.co",
-     anonKey: "eyJhbGci...",
+   window.FIREBASE_CONFIG = {
+     apiKey: "…",
+     authDomain: "o-teu-projeto.firebaseapp.com",
+     projectId: "o-teu-projeto",
+     storageBucket: "o-teu-projeto.appspot.com",
+     messagingSenderId: "…",
+     appId: "…",
    };
    ```
-5. (Recomendado) Em **Authentication → URL Configuration**, adiciona o URL da tua
-   app (ex.: `https://<utilizador>.github.io/<repo>/`) aos *Redirect URLs*.
+6. **Authentication → Settings → Authorized domains →** adiciona o domínio da tua app
+   (ex.: `<utilizador>.github.io`) para o login com Google funcionar aí.
 
-Ao abrir a app aparece uma **porta de entrada**: introduzes o email, recebes um
-link mágico (sem password) e a coleção é carregada da base de dados. Cada carta
-é uma linha na tabela; adicionar/remover/marcar *foil* grava logo na base de dados.
-A `anon key` é pública por design — a segurança vem das *Row Level Security
-policies* do `supabase-setup.sql`, que impedem cada utilizador de ver dados dos outros.
+Ao abrir a app aparece uma **porta de entrada**: clicas em **Entrar com Google** e a
+coleção é carregada da base de dados. Cada carta é uma *document* em
+`users/{uid}/cards/{cardId}`; adicionar/remover/marcar *foil* grava logo no Firestore.
+Os valores do `config.js` são públicos por design — a segurança vem das
+*Firestore Security Rules* ([`firestore.rules`](firestore.rules)), que impedem cada
+utilizador de aceder aos dados dos outros.
 
-> **Offline:** se ficares sem ligação, a app usa a cache local e sincroniza as
-> alterações assim que a ligação voltar.
+> **Offline:** o Firestore mantém uma cache local; sem ligação continuas a ver e a
+> editar a coleção, e as alterações sincronizam assim que a ligação voltar.
 
 ## Como usar localmente
 
@@ -64,13 +70,11 @@ automaticamente. Só precisas de ativar o Pages uma vez:
 3. Faz push para o branch principal — a app fica em
    `https://<utilizador>.github.io/<repositorio>/`.
 
-## Já usavas a versão antiga (coleção no browser)?
+## Migração da coleção (JSON)
 
-A versão anterior guardava tudo no `localStorage` e tinha uma tabela
-`collections` com a coleção num único JSON. Agora cada carta é uma linha na
-tabela `collection_cards`. O `supabase-setup.sql` inclui, no fim, um bloco de
-migração comentado que converte a tabela antiga para o novo formato — descomenta-o
-e corre-o no **SQL Editor** se precisares.
+Se tinhas dados noutra versão, usa o botão **Exportar** para gravar a coleção em
+JSON e, depois de entrares na versão Firebase, o **Importar JSON** volta a colocá-la
+na base de dados (cada carta passa a ser uma *document* no Firestore).
 
 ## Notas
 

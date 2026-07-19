@@ -1,8 +1,8 @@
 /* ============================================================
    A Minha Coleção Magic
    - Dados/imagens: API pública da Scryfall (sem chave)
-   - Persistência: base de dados (Supabase) — ver auth.js.
-     O localStorage é só uma cache offline gerida pela camada de dados.
+   - Persistência: base de dados Firestore (Firebase) — ver auth.js.
+     A cache offline é gerida pelo próprio Firestore.
    ============================================================ */
 
 const SCRYFALL = "https://api.scryfall.com";
@@ -19,9 +19,13 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
 /* ---------- Persistência (delegada à camada de dados / auth.js) ---------- */
-// Marca uma ou mais cartas como alteradas para serem gravadas na base de dados.
-function persist(id) { window.Storage && window.Storage.touch(id); }
-function persistMany(ids) { window.Storage && window.Storage.touchAll(ids); }
+// Grava na base de dados: se a carta existe em memória faz upsert, senão remove.
+function persist(id) {
+  if (!window.Storage) return;
+  if (collection[id]) window.Storage.upsert(id, collection[id]);
+  else window.Storage.remove(id);
+}
+function persistMany(ids) { ids.forEach(persist); }
 
 /* ---------- Ponte com a camada de dados (auth.js) ---------- */
 // Devolve a coleção atual (usada ao gravar na base de dados).
@@ -209,7 +213,7 @@ function removeFromCollection(id) {
   persist(id);
 }
 
-// Guarda apenas os campos necessários para não encher o localStorage
+// Guarda apenas os campos necessários para não encher a base de dados
 function slimCard(card) {
   return {
     id: card.id,
