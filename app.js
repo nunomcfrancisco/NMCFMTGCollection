@@ -18,7 +18,14 @@ const $$ = (sel) => document.querySelectorAll(sel);
 
 function loadCollection() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    // Regra: no máximo 1 cópia de cada carta. Normaliza dados antigos (qty > 1).
+    let changed = false;
+    for (const entry of Object.values(data)) {
+      if (entry && entry.qty > 1) { entry.qty = 1; changed = true; }
+    }
+    if (changed) localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return data;
   } catch {
     return {};
   }
@@ -37,10 +44,15 @@ window.getCollection = () => collection;
 // Substitui a coleção com dados vindos da nuvem, sem re-disparar o push.
 window.applyRemoteCollection = (data) => {
   collection = data && typeof data === "object" && !Array.isArray(data) ? data : {};
+  // Aplica a regra de 1 cópia máxima a dados vindos da nuvem.
+  for (const entry of Object.values(collection)) {
+    if (entry && entry.qty > 1) entry.qty = 1;
+  }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(collection));
   renderCollection();
-  // Se a vista de edições já tem cartas carregadas, atualiza o grayscale/estatísticas.
-  if (editionsState.cards.length) renderEdition();
+  // Atualiza a vista de edições (grelha de sets e/ou detalhe da edição aberta).
+  if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
+  if (editionsState.cards.length && !$("#edition-detail").hidden) renderEdition();
 };
 
 function eur(value) {
@@ -142,39 +154,48 @@ function appendResults(cards) {
 function searchCardEl(card) {
   const el = document.createElement("div");
   el.className = "card";
-  const entry = collection[card.id];
-  const qty = entry ? entry.qty : 0;
   const price = cardPrice(card, false);
 
   el.innerHTML = `
     <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
       <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
-      ${qty ? `<span class="card-qty-badge">×${qty}</span>` : ""}
     </div>
     <div class="card-body">
       <div class="card-name">${esc(card.name)}</div>
       <div class="card-meta">${esc(card.set_name)} · ${esc((card.rarity || "").toUpperCase())}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
-      <div class="card-actions">
-        <button class="btn btn-primary btn-sm add-btn">+ Adicionar</button>
-      </div>
+      <div class="card-actions"></div>
     </div>`;
 
-  el.querySelector(".add-btn").addEventListener("click", () => {
-    addToCollection(card);
-    const badge = el.querySelector(".card-qty-badge");
-    const newQty = collection[card.id].qty;
-    if (badge) badge.textContent = `×${newQty}`;
-    else el.querySelector(".card-img-wrap").insertAdjacentHTML(
-      "beforeend", `<span class="card-qty-badge">×${newQty}</span>`);
-  });
+  const actions = el.querySelector(".card-actions");
+  makeOwnToggle(card, el, actions)();
 
   el.querySelector(".card-img-wrap").addEventListener("click", (e) => {
-    if (e.target.classList.contains("add-btn")) return;
+    if (e.target.closest(".card-actions")) return;
     openPreview(el.querySelector(".card-img-wrap").dataset.large);
   });
 
   return el;
+}
+
+/* Botão que alterna entre adicionar/remover a carta (máx. 1 cópia).
+   Usado na Procura e nas Edições. Devolve uma função que refaz o estado visual.
+   `afterToggle` corre depois de cada alteração de posse. */
+function makeOwnToggle(card, cardEl, actionsEl, afterToggle) {
+  function sync() {
+    const owned = !!collection[card.id];
+    cardEl.classList.toggle("not-owned", !owned);
+    actionsEl.innerHTML = owned
+      ? `<button class="btn btn-sm remove-btn">✓ Na coleção · Remover</button>`
+      : `<button class="btn btn-primary btn-sm add-btn">+ Adicionar</button>`;
+    actionsEl.querySelector("button").addEventListener("click", () => {
+      if (collection[card.id]) removeFromCollection(card.id);
+      else addToCollection(card);
+      sync();
+      if (afterToggle) afterToggle();
+    });
+  }
+  return sync;
 }
 
 /* ============================================================
@@ -182,8 +203,10 @@ function searchCardEl(card) {
    ============================================================ */
 function addToCollection(card, foil = false) {
   const id = card.id;
+  // No máximo 1 cópia: se já existe, apenas garante qty = 1 (e atualiza o foil).
   if (collection[id]) {
-    collection[id].qty += 1;
+    collection[id].qty = 1;
+    collection[id].foil = foil || collection[id].foil;
   } else {
     collection[id] = {
       qty: 1,
@@ -192,6 +215,12 @@ function addToCollection(card, foil = false) {
       card: slimCard(card),
     };
   }
+  saveCollection();
+}
+
+function removeFromCollection(id) {
+  if (!collection[id]) return;
+  delete collection[id];
   saveCollection();
 }
 
@@ -212,14 +241,6 @@ function slimCard(card) {
   };
 }
 
-function changeQty(id, delta) {
-  if (!collection[id]) return;
-  collection[id].qty += delta;
-  if (collection[id].qty <= 0) delete collection[id];
-  saveCollection();
-  renderCollection();
-}
-
 function toggleFoil(id) {
   if (!collection[id]) return;
   collection[id].foil = !collection[id].foil;
@@ -237,13 +258,11 @@ function renderCollection() {
   const grid = $("#collection-grid");
   const entries = Object.values(collection);
 
-  // Estatísticas
-  const totalCards = entries.reduce((s, e) => s + e.qty, 0);
+  // Estatísticas (máx. 1 cópia por carta → total = nº de cartas únicas)
   const unique = entries.length;
-  const totalValue = entries.reduce((s, e) => s + cardPrice(e.card, e.foil) * e.qty, 0);
+  const totalValue = entries.reduce((s, e) => s + cardPrice(e.card, e.foil), 0);
   $("#collection-stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Cartas (total)</div><div class="stat-value">${totalCards.toLocaleString("pt-PT")}</div></div>
-    <div class="stat"><div class="stat-label">Cartas únicas</div><div class="stat-value">${unique.toLocaleString("pt-PT")}</div></div>
+    <div class="stat"><div class="stat-label">Cartas</div><div class="stat-value">${unique.toLocaleString("pt-PT")}</div></div>
     <div class="stat"><div class="stat-label">Valor estimado</div><div class="stat-value">${eur(totalValue)}</div></div>`;
 
   if (unique === 0) {
@@ -270,7 +289,6 @@ function renderCollection() {
       case "name-desc": return b.card.name.localeCompare(a.card.name);
       case "value-desc": return cardPrice(b.card, b.foil) - cardPrice(a.card, a.foil);
       case "value": return cardPrice(a.card, a.foil) - cardPrice(b.card, b.foil);
-      case "qty-desc": return b.qty - a.qty;
       case "recent": return (b.addedAt || 0) - (a.addedAt || 0);
       default: return a.card.name.localeCompare(b.card.name);
     }
@@ -285,7 +303,7 @@ function renderCollection() {
 }
 
 function collectionCardEl(entry) {
-  const { card, qty, foil } = entry;
+  const { card, foil } = entry;
   const el = document.createElement("div");
   el.className = "card";
   const unit = cardPrice(card, foil);
@@ -293,26 +311,23 @@ function collectionCardEl(entry) {
   el.innerHTML = `
     <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
       <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
-      <span class="card-qty-badge">×${qty}</span>
       ${foil ? `<span class="card-foil-badge">FOIL</span>` : ""}
     </div>
     <div class="card-body">
       <div class="card-name">${esc(card.name)}</div>
       <div class="card-meta">${esc(card.set_name)} · Nº ${esc(card.collector_number || "?")}</div>
-      <div class="card-price">${unit ? eur(unit) : "—"} <span style="color:var(--text-dim);font-weight:400">/ un.</span></div>
+      <div class="card-price">${unit ? eur(unit) : "—"}</div>
       <div class="card-actions">
-        <div class="qty-controls">
-          <button class="dec" aria-label="Menos">−</button>
-          <span class="qty-num">${qty}</span>
-          <button class="inc" aria-label="Mais">+</button>
-        </div>
-        <button class="btn btn-sm foil-btn" style="margin-left:auto">${foil ? "★ Foil" : "☆ Foil"}</button>
+        <button class="btn btn-sm foil-btn">${foil ? "★ Foil" : "☆ Foil"}</button>
+        <button class="btn btn-sm remove-btn" style="margin-left:auto">🗑 Remover</button>
       </div>
     </div>`;
 
-  el.querySelector(".dec").addEventListener("click", () => changeQty(card.id, -1));
-  el.querySelector(".inc").addEventListener("click", () => changeQty(card.id, +1));
   el.querySelector(".foil-btn").addEventListener("click", () => toggleFoil(card.id));
+  el.querySelector(".remove-btn").addEventListener("click", () => {
+    removeFromCollection(card.id);
+    renderCollection();
+  });
   el.querySelector(".card-img-wrap").addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
     openPreview(el.querySelector(".card-img-wrap").dataset.large);
@@ -325,7 +340,16 @@ function collectionCardEl(entry) {
    EDIÇÕES — escolher um set e ver todas as cartas
    (as que não estão na coleção aparecem em grayscale)
    ============================================================ */
-let editionsState = { setsLoaded: false, loading: false, cards: [], setCode: "" };
+let editionsState = { setsLoaded: false, loading: false, sets: [], cards: [], setCode: "" };
+
+// Nº de cartas na coleção pertencentes a um dado código de set.
+function ownedInSet(code) {
+  let n = 0;
+  for (const e of Object.values(collection)) {
+    if (e.card && e.card.set === code) n++;
+  }
+  return n;
+}
 
 async function initEditions() {
   if (editionsState.setsLoaded || editionsState.loading) return;
@@ -337,19 +361,13 @@ async function initEditions() {
     const data = await res.json();
 
     // Só edições com cartas reais (ignora tokens/memorabilia sem cartas), ordenadas por data.
-    const sets = (data.data || [])
+    editionsState.sets = (data.data || [])
       .filter((s) => s.card_count > 0 && !s.digital)
       .sort((a, b) => (b.released_at || "").localeCompare(a.released_at || ""));
 
-    const select = $("#edition-select");
-    select.innerHTML =
-      `<option value="">— Escolhe uma edição —</option>` +
-      sets.map((s) =>
-        `<option value="${esc(s.code)}">${esc(s.name)} (${s.card_count})</option>`
-      ).join("");
-
     editionsState.setsLoaded = true;
     setStatus("#edition-status", "");
+    renderEditionPicker();
   } catch (err) {
     setStatus("#edition-status", `Falha ao carregar edições: ${esc(err.message)}`, true);
   } finally {
@@ -357,7 +375,47 @@ async function initEditions() {
   }
 }
 
-$("#edition-select").addEventListener("change", (e) => loadEditionCards(e.target.value));
+// Grelha de símbolos dos sets (4 por linha). Cada célula mostra símbolo, nome e % na coleção.
+function renderEditionPicker() {
+  const grid = $("#edition-sets");
+  const filter = $("#edition-search").value.trim().toLowerCase();
+  const sets = filter
+    ? editionsState.sets.filter((s) =>
+        s.name.toLowerCase().includes(filter) || s.code.toLowerCase().includes(filter))
+    : editionsState.sets;
+
+  grid.innerHTML = "";
+  sets.forEach((s) => {
+    const owned = ownedInSet(s.code);
+    const pct = s.card_count ? Math.round((owned / s.card_count) * 100) : 0;
+    const cell = document.createElement("button");
+    cell.className = "set-cell";
+    cell.title = `${s.name} — ${owned}/${s.card_count} (${pct}%)`;
+    cell.innerHTML = `
+      <img class="set-symbol" loading="lazy" src="${esc(s.icon_svg_uri || "")}" alt="" />
+      <span class="set-name">${esc(s.name)}</span>
+      <span class="set-pct">${pct}%</span>`;
+    cell.addEventListener("click", () => openEdition(s));
+    grid.appendChild(cell);
+  });
+}
+
+function openEdition(set) {
+  $("#edition-picker").hidden = true;
+  $("#edition-detail").hidden = false;
+  $("#edition-title").textContent = set.name;
+  $("#edition-missing-only").checked = false;
+  loadEditionCards(set.code);
+}
+
+$("#edition-search").addEventListener("input", renderEditionPicker);
+$("#edition-back").addEventListener("click", () => {
+  $("#edition-detail").hidden = true;
+  $("#edition-picker").hidden = false;
+  editionsState.setCode = "";
+  editionsState.cards = [];
+  renderEditionPicker(); // reflete cartas adicionadas/removidas nesta edição
+});
 $("#edition-missing-only").addEventListener("change", renderEdition);
 
 async function loadEditionCards(code) {
@@ -365,10 +423,7 @@ async function loadEditionCards(code) {
   editionsState.cards = [];
   $("#edition-grid").innerHTML = "";
   $("#edition-stats").innerHTML = "";
-  if (!code) {
-    setStatus("#edition-status", "");
-    return;
-  }
+  if (!code) return;
 
   editionsState.loading = true;
   setStatus("#edition-status", `<span class="spinner"></span>A carregar cartas…`);
@@ -389,6 +444,7 @@ async function loadEditionCards(code) {
     }
 
     editionsState.cards = all;
+    setStatus("#edition-status", "");
     renderEdition();
   } catch (err) {
     setStatus("#edition-status", `Falha ao carregar cartas: ${esc(err.message)}`, true);
@@ -413,8 +469,6 @@ function renderEdition() {
   const missingOnly = $("#edition-missing-only").checked;
   const list = missingOnly ? cards.filter((c) => !collection[c.id]) : cards;
 
-  setStatus("#edition-status", missingOnly ? `${list.length} carta(s) em falta.` : "");
-
   grid.innerHTML = "";
   list.forEach((card) => grid.appendChild(editionCardEl(card)));
 }
@@ -422,40 +476,28 @@ function renderEdition() {
 function editionCardEl(card) {
   const el = document.createElement("div");
   el.className = "card";
-  const entry = collection[card.id];
-  const qty = entry ? entry.qty : 0;
-  if (!qty) el.classList.add("not-owned");
   const price = cardPrice(card, false);
 
   el.innerHTML = `
     <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
       <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
-      ${qty ? `<span class="card-qty-badge">×${qty}</span>` : ""}
     </div>
     <div class="card-body">
       <div class="card-name">${esc(card.name)}</div>
       <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc((card.rarity || "").toUpperCase())}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
-      <div class="card-actions">
-        <button class="btn btn-primary btn-sm add-btn">+ Adicionar</button>
-      </div>
+      <div class="card-actions"></div>
     </div>`;
 
-  el.querySelector(".add-btn").addEventListener("click", () => {
-    addToCollection(card);
-    const newQty = collection[card.id].qty;
-    el.classList.remove("not-owned");
-    const badge = el.querySelector(".card-qty-badge");
-    if (badge) badge.textContent = `×${newQty}`;
-    else el.querySelector(".card-img-wrap").insertAdjacentHTML(
-      "beforeend", `<span class="card-qty-badge">×${newQty}</span>`);
-    // Atualiza as estatísticas (e a vista "só em falta", se ativa).
+  const actions = el.querySelector(".card-actions");
+  makeOwnToggle(card, el, actions, () => {
+    // Se o filtro "só em falta" estiver ativo, refaz a lista; senão só as estatísticas.
     if ($("#edition-missing-only").checked) renderEdition();
     else refreshEditionStats();
-  });
+  })();
 
   el.querySelector(".card-img-wrap").addEventListener("click", (e) => {
-    if (e.target.classList.contains("add-btn")) return;
+    if (e.target.closest(".card-actions")) return;
     openPreview(el.querySelector(".card-img-wrap").dataset.large);
   });
 
@@ -468,8 +510,7 @@ function refreshEditionStats() {
   const owned = cards.filter((c) => collection[c.id]).length;
   const total = cards.length;
   const pct = total ? Math.round((owned / total) * 100) : 0;
-  const stats = $("#edition-stats");
-  const values = stats.querySelectorAll(".stat-value");
+  const values = $("#edition-stats").querySelectorAll(".stat-value");
   if (values.length === 3) {
     values[1].textContent = owned.toLocaleString("pt-PT");
     values[2].textContent = `${pct}%`;
@@ -502,17 +543,20 @@ $("#import-file").addEventListener("change", async (e) => {
 
     const merge = confirm(
       "Importar coleção:\n\n" +
-      "OK = juntar à coleção atual (somar quantidades)\n" +
+      "OK = juntar à coleção atual\n" +
       "Cancelar = substituir a coleção atual"
     );
 
     if (merge) {
       for (const [id, entry] of Object.entries(data)) {
-        if (collection[id]) collection[id].qty += entry.qty || 1;
-        else collection[id] = entry;
+        if (!collection[id]) collection[id] = entry;
       }
     } else {
       collection = data;
+    }
+    // Garante a regra de 1 cópia máxima.
+    for (const entry of Object.values(collection)) {
+      if (entry && entry.qty > 1) entry.qty = 1;
     }
     saveCollection();
     renderCollection();
@@ -523,6 +567,102 @@ $("#import-file").addEventListener("change", async (e) => {
     e.target.value = "";
   }
 });
+
+/* ---------- Importar CSV do Moxfield ---------- */
+$("#import-csv-btn").addEventListener("click", () => $("#import-csv-file").click());
+
+$("#import-csv-file").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    await importMoxfieldCSV(text);
+  } catch (err) {
+    setStatus("#collection-status", `Falha ao importar CSV: ${esc(err.message)}`, true);
+  } finally {
+    e.target.value = "";
+  }
+});
+
+// Interpreta CSV respeitando aspas e vírgulas dentro de campos.
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field); field = "";
+    } else if (c === "\n") {
+      row.push(field); rows.push(row); row = []; field = "";
+    } else if (c !== "\r") {
+      field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+async function importMoxfieldCSV(text) {
+  const rows = parseCSV(text).filter((r) => r.some((c) => c.trim() !== ""));
+  if (rows.length < 2) throw new Error("CSV vazio ou sem cartas.");
+
+  const header = rows[0].map((h) => h.trim().toLowerCase());
+  const col = (name) => header.indexOf(name);
+  const iEdition = col("edition");
+  const iNumber = col("collector number");
+  const iFoil = col("foil");
+  if (iEdition === -1 || iNumber === -1) {
+    throw new Error("Não parece um CSV do Moxfield (faltam colunas Edition / Collector Number).");
+  }
+
+  // Constrói identificadores set+collector_number e memoriza o foil de cada um.
+  const items = [];
+  const foilByKey = {};
+  for (const r of rows.slice(1)) {
+    const set = (r[iEdition] || "").trim().toLowerCase();
+    const number = (r[iNumber] || "").trim();
+    if (!set || !number) continue;
+    const foil = iFoil !== -1 && /foil|etched/i.test((r[iFoil] || "").trim());
+    items.push({ set, collector_number: number });
+    foilByKey[`${set}|${number}`] = foil;
+  }
+  if (!items.length) throw new Error("Nenhuma carta válida encontrada no CSV.");
+
+  let imported = 0, notFound = 0;
+  const batchSize = 75; // limite da Scryfall
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    setStatus("#collection-status",
+      `<span class="spinner"></span>A importar do Moxfield… ${Math.min(i + batchSize, items.length)}/${items.length}`);
+    const res = await fetch(`${SCRYFALL}/cards/collection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifiers: batch }),
+    });
+    if (!res.ok) throw new Error(`Erro ${res.status} na Scryfall`);
+    const data = await res.json();
+    (data.data || []).forEach((card) => {
+      const foil = foilByKey[`${card.set}|${card.collector_number}`] || false;
+      addToCollection(card, foil);
+      imported++;
+    });
+    notFound += (data.not_found || []).length;
+    if (i + batchSize < items.length) await new Promise((r) => setTimeout(r, 100));
+  }
+
+  renderCollection();
+  if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
+  setStatus("#collection-status",
+    `Importadas ${imported} carta(s) do Moxfield.` +
+    (notFound ? ` ${notFound} não foram encontradas na Scryfall.` : ""));
+}
 
 /* ============================================================
    PRÉ-VISUALIZAÇÃO

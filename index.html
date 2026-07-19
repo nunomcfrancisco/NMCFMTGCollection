@@ -43,19 +43,28 @@
 
     <!-- ===== VISTA: EDIÇÕES ===== -->
     <section id="view-editions" class="view">
-      <div class="editions-toolbar">
-        <select id="edition-select" aria-label="Escolher edição">
-          <option value="">A carregar edições…</option>
-        </select>
-        <label class="check-inline">
-          <input type="checkbox" id="edition-missing-only" />
-          Mostrar apenas as que faltam
-        </label>
+      <!-- Seletor de edições (grelha de símbolos) -->
+      <div id="edition-picker">
+        <p class="hint">Escolhe uma edição pelo símbolo. A percentagem indica quantas cartas dessa edição já tens.</p>
+        <input id="edition-search" type="search" placeholder="Filtrar edições…" aria-label="Filtrar edições" />
+        <div id="edition-sets" class="set-grid"></div>
       </div>
-      <p class="hint">Escolhe uma edição para veres todas as cartas. As que ainda não tens aparecem a preto e branco.</p>
-      <div id="edition-stats" class="stats"></div>
+
+      <!-- Detalhe da edição escolhida -->
+      <div id="edition-detail" hidden>
+        <div class="edition-detail-bar">
+          <button id="edition-back" class="btn btn-sm">← Todas as edições</button>
+          <label class="check-inline">
+            <input type="checkbox" id="edition-missing-only" />
+            Mostrar apenas as que faltam
+          </label>
+        </div>
+        <h2 id="edition-title" class="edition-title"></h2>
+        <div id="edition-stats" class="stats"></div>
+        <div id="edition-grid" class="card-grid"></div>
+      </div>
+
       <div id="edition-status" class="status" aria-live="polite"></div>
-      <div id="edition-grid" class="card-grid"></div>
     </section>
 
     <!-- ===== VISTA: COLEÇÃO ===== -->
@@ -69,13 +78,14 @@
           <option value="name-desc">Nome (Z→A)</option>
           <option value="value-desc">Valor (maior)</option>
           <option value="value">Valor (menor)</option>
-          <option value="qty-desc">Quantidade (maior)</option>
           <option value="recent">Adicionadas recentemente</option>
         </select>
         <div class="spacer"></div>
         <button id="export-btn" class="btn">Exportar</button>
-        <button id="import-btn" class="btn">Importar</button>
+        <button id="import-btn" class="btn">Importar JSON</button>
+        <button id="import-csv-btn" class="btn">Importar CSV (Moxfield)</button>
         <input id="import-file" type="file" accept="application/json,.json" hidden />
+        <input id="import-csv-file" type="file" accept="text/csv,.csv" hidden />
       </div>
 
       <div id="collection-status" class="status" aria-live="polite"></div>
