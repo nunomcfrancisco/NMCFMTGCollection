@@ -14,10 +14,11 @@
    (ficheiro firestore.rules).
    ============================================================ */
 window.FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyB3ZoFZ87fjlq76N71tSvAX1a05OFAUnU0",
+  authDomain: "nmcfmtgcollection.firebaseapp.com",
+  projectId: "nmcfmtgcollection",
+  storageBucket: "nmcfmtgcollection.firebasestorage.app",
+  messagingSenderId: "259570155039",
+  appId: "1:259570155039:web:b49a66b4009fa14aa61f2a",
+  measurementId: "G-5PTKH11H8M",
 };
