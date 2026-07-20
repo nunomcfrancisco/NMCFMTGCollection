@@ -63,8 +63,28 @@ window.applyRemoteCollection = (data) => {
   if (editionsState.cards.length && !$("#edition-detail").hidden) renderEdition();
 };
 
+// Formatadores criados uma vez — construir um Intl.NumberFormat é caro e
+// estes são usados por cada carta desenhada.
+const eurFmt = new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" });
+const numFmt = new Intl.NumberFormat("pt-PT");
+
+// Coladores reutilizados: String.localeCompare constrói um por chamada, o que
+// pesa dentro de um sort() com milhares de comparações.
+const nameCollator = new Intl.Collator("pt-PT");
+// Ordena números de colecionador de forma natural ("2" < "10" < "12a").
+const numberCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
 function eur(value) {
-  return new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(value || 0);
+  return eurFmt.format(value || 0);
+}
+
+// Adia execuções seguidas (usado nas caixas de pesquisa, que disparam a cada tecla).
+function debounce(fn, ms = 150) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), ms);
+  };
 }
 
 // Preço da carta em EUR (Scryfall dá EUR e USD). Usa EUR; cai para USD*0.92.
@@ -187,7 +207,8 @@ function toggleFoil(id) {
 // Estado da vista Coleção: setCode = null → grelha de edições; senão → detalhe.
 let collectionView = { setCode: null };
 
-$("#collection-filter").addEventListener("input", renderCollection);
+// Debounce: escrever no filtro redesenha a grelha toda; sem isto seria a cada tecla.
+$("#collection-filter").addEventListener("input", debounce(() => renderCollection(), 150));
 $("#collection-sort").addEventListener("change", renderCollection);
 $("#collection-rarity").addEventListener("change", renderCollection);
 $("#collection-show-missing").addEventListener("change", renderCollection);
@@ -203,7 +224,7 @@ function renderCollection() {
   const unique = entries.length;
   const totalValue = entries.reduce((s, e) => s + cardPrice(e.card, e.foil), 0);
   $("#collection-stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Cartas</div><div class="stat-value">${unique.toLocaleString("pt-PT")}</div></div>
+    <div class="stat"><div class="stat-label">Cartas</div><div class="stat-value">${numFmt.format(unique)}</div></div>
     <div class="stat"><div class="stat-label">Valor estimado</div><div class="stat-value">${eur(totalValue)}</div></div>`;
 
   if (unique === 0) {
@@ -252,7 +273,7 @@ function collectionBySet() {
 // Compara números de colecionador ("1", "2", "10", "12a", "★123") de forma
 // natural (numérica quando possível). asc = crescente.
 function cmpCollector(a, b, asc = true) {
-  const r = String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true, sensitivity: "base" });
+  const r = numberCollator.compare(String(a ?? ""), String(b ?? ""));
   return asc ? r : -r;
 }
 
@@ -268,17 +289,24 @@ function renderCollectionPicker() {
 
   const bySet = collectionBySet();
   const filter = $("#collection-filter").value.trim().toLowerCase();
+  // Nome e data de cada set calculados UMA vez (o sort compara O(n log n) vezes).
+  const info = Object.create(null);
+  for (const c of Object.keys(bySet)) {
+    const name = setDisplayName(c, bySet[c][0]);
+    info[c] = {
+      name,
+      lower: name.toLowerCase(),
+      released: (setsByCode && setsByCode[c] && setsByCode[c].released_at) || "",
+    };
+  }
+
   let codes = Object.keys(bySet);
   if (filter) {
-    codes = codes.filter((c) =>
-      setDisplayName(c, bySet[c][0]).toLowerCase().includes(filter) ||
-      c.toLowerCase().includes(filter));
+    codes = codes.filter((c) => info[c].lower.includes(filter) || c.toLowerCase().includes(filter));
   }
   codes.sort((a, b) => {
-    const da = (setsByCode && setsByCode[a] && setsByCode[a].released_at) || "";
-    const db = (setsByCode && setsByCode[b] && setsByCode[b].released_at) || "";
-    if (da !== db) return db.localeCompare(da);
-    return setDisplayName(a, bySet[a][0]).localeCompare(setDisplayName(b, bySet[b][0]));
+    if (info[a].released !== info[b].released) return info[b].released < info[a].released ? -1 : 1;
+    return nameCollator.compare(info[a].name, info[b].name);
   });
 
   $("#collection-status").innerHTML = filter
@@ -286,13 +314,13 @@ function renderCollectionPicker() {
     : (setsByCode ? "" : `<span class="spinner"></span>A carregar sets…`);
 
   const grid = $("#collection-sets");
-  grid.innerHTML = "";
+  const frag = document.createDocumentFragment();
   codes.forEach((code) => {
     const meta = setsByCode && setsByCode[code];
     const owned = bySet[code].length;
     const total = meta ? meta.card_count : 0;
     const pct = total ? Math.round((owned / total) * 100) : null;
-    const name = setDisplayName(code, bySet[code][0]);
+    const name = info[code].name;
 
     const cell = document.createElement("button");
     cell.className = "set-cell";
@@ -308,8 +336,10 @@ function renderCollectionPicker() {
       $("#collection-show-missing").checked = false; // default: só cartas colecionadas
       renderCollection();
     });
-    grid.appendChild(cell);
+    frag.appendChild(cell);
   });
+  grid.innerHTML = "";
+  grid.appendChild(frag);
 }
 
 // DETALHE: as tuas cartas de uma edição escolhida.
@@ -327,9 +357,9 @@ function renderCollectionDetail() {
 
   $("#collection-set-title").textContent = name;
   $("#collection-set-stats").innerHTML =
-    `<div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${owned.toLocaleString("pt-PT")}</div></div>` +
+    `<div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${numFmt.format(owned)}</div></div>` +
     (total
-      ? `<div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
+      ? `<div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${numFmt.format(total)}</div></div>
          <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`
       : "");
 
@@ -358,52 +388,66 @@ function renderCollectionDetail() {
     let cards = setCardsCache[code].slice();
     if (filter) cards = cards.filter((c) => c.name.toLowerCase().includes(filter));
     if (rarity) cards = cards.filter((c) => c.rarity === rarity);
-    const val = (c) => {
+    // Preço e data calculados UMA vez por carta (o sort chamaria isto a cada
+    // comparação, ou seja O(n log n) parseFloat por render).
+    const valOf = new Map(), addedOf = new Map();
+    for (const c of cards) {
       const e = collection[c.id];
-      return e ? cardPrice(e.card, e.foil) : cardPrice(c, false);
-    };
-    const added = (c) => (collection[c.id] && collection[c.id].addedAt) || 0;
+      valOf.set(c, e ? cardPrice(e.card, e.foil) : cardPrice(c, false));
+      addedOf.set(c, (e && e.addedAt) || 0);
+    }
+    const val = (c) => valOf.get(c);
+    const added = (c) => addedOf.get(c);
     cards.sort((a, b) => {
       switch (sort) {
-        case "name-desc": return b.name.localeCompare(a.name);
+        case "name-desc": return nameCollator.compare(b.name, a.name);
         case "value-desc": return val(b) - val(a);
         case "value": return val(a) - val(b);
         case "number": return cmpCollector(a.collector_number, b.collector_number, true);
         case "number-desc": return cmpCollector(a.collector_number, b.collector_number, false);
         case "recent": return added(b) - added(a);
-        default: return a.name.localeCompare(b.name);
+        default: return nameCollator.compare(a.name, b.name);
       }
     });
 
     const missing = cards.filter((c) => !collection[c.id]).length;
     setStatus("#collection-status", `${cards.length} carta(s) · ${missing} em falta.`);
 
-    grid.innerHTML = "";
-    cards.forEach((c) => grid.appendChild(
+    const frag = document.createDocumentFragment();
+    cards.forEach((c) => frag.appendChild(
       collection[c.id] ? collectionCardEl(collection[c.id]) : collectionMissingCardEl(c)
     ));
+    grid.innerHTML = "";
+    grid.appendChild(frag);
     return;
   }
 
   // Default: só as cartas que tens (filtro + raridade + ordenação).
   if (filter) entries = entries.filter((e) => e.card.name.toLowerCase().includes(filter));
   if (rarity) entries = entries.filter((e) => e.card.rarity === rarity);
+  // Preço calculado uma vez por entrada, não a cada comparação do sort.
+  const priceOf = new Map();
+  if (sort === "value" || sort === "value-desc") {
+    for (const e of entries) priceOf.set(e, cardPrice(e.card, e.foil));
+  }
   entries.sort((a, b) => {
     switch (sort) {
-      case "name-desc": return b.card.name.localeCompare(a.card.name);
-      case "value-desc": return cardPrice(b.card, b.foil) - cardPrice(a.card, a.foil);
-      case "value": return cardPrice(a.card, a.foil) - cardPrice(b.card, b.foil);
+      case "name-desc": return nameCollator.compare(b.card.name, a.card.name);
+      case "value-desc": return priceOf.get(b) - priceOf.get(a);
+      case "value": return priceOf.get(a) - priceOf.get(b);
       case "number": return cmpCollector(a.card.collector_number, b.card.collector_number, true);
       case "number-desc": return cmpCollector(a.card.collector_number, b.card.collector_number, false);
       case "recent": return (b.addedAt || 0) - (a.addedAt || 0);
-      default: return a.card.name.localeCompare(b.card.name);
+      default: return nameCollator.compare(a.card.name, b.card.name);
     }
   });
 
   $("#collection-status").innerHTML = filter ? `${entries.length} carta(s).` : "";
 
+  const frag = document.createDocumentFragment();
+  entries.forEach((entry) => frag.appendChild(collectionCardEl(entry)));
   grid.innerHTML = "";
-  entries.forEach((entry) => grid.appendChild(collectionCardEl(entry)));
+  grid.appendChild(frag);
 }
 
 // Carta em falta na Coleção (não colecionada): a cinzento, com botão para adicionar.
@@ -426,9 +470,10 @@ function collectionMissingCardEl(card) {
   const actions = el.querySelector(".card-actions");
   makeOwnToggle(card, el, actions, () => renderCollection())();
 
-  el.querySelector(".card-img-wrap").addEventListener("click", (e) => {
+  const imgWrap = el.querySelector(".card-img-wrap");
+  imgWrap.addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
-    openPreview(el.querySelector(".card-img-wrap").dataset.large);
+    openPreview(imgWrap.dataset.large);
   });
 
   return el;
@@ -460,9 +505,10 @@ function collectionCardEl(entry) {
     removeFromCollection(card.id);
     renderCollection();
   });
-  el.querySelector(".card-img-wrap").addEventListener("click", (e) => {
+  const imgWrap = el.querySelector(".card-img-wrap");
+  imgWrap.addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
-    openPreview(el.querySelector(".card-img-wrap").dataset.large);
+    openPreview(imgWrap.dataset.large);
   });
 
   return el;
@@ -558,6 +604,18 @@ function ownedInSet(code) {
   return n;
 }
 
+// Contagem por código de set numa única passagem pela coleção. Usar isto quando
+// se precisa do total de MUITOS sets de seguida (ex.: a grelha de ~900 sets):
+// chamar ownedInSet() por set seria O(sets × coleção).
+function ownedCountBySet() {
+  const counts = Object.create(null);
+  for (const e of Object.values(collection)) {
+    const code = e.card && e.card.set;
+    if (code) counts[code] = (counts[code] || 0) + 1;
+  }
+  return counts;
+}
+
 async function initEditions() {
   if (editionsState.setsLoaded) { renderEditionPicker(); return; }
   if (editionsState.loading) return;
@@ -583,9 +641,10 @@ function renderEditionPicker() {
         s.name.toLowerCase().includes(filter) || s.code.toLowerCase().includes(filter))
     : editionsState.sets;
 
-  grid.innerHTML = "";
+  const counts = ownedCountBySet();
+  const frag = document.createDocumentFragment();
   sets.forEach((s) => {
-    const owned = ownedInSet(s.code);
+    const owned = counts[s.code] || 0;
     const pct = s.card_count ? Math.round((owned / s.card_count) * 100) : 0;
     const cell = document.createElement("button");
     cell.className = "set-cell";
@@ -595,8 +654,10 @@ function renderEditionPicker() {
       <span class="set-name">${esc(s.name)}</span>
       <span class="set-pct">${pct}%</span>`;
     cell.addEventListener("click", () => openEdition(s));
-    grid.appendChild(cell);
+    frag.appendChild(cell);
   });
+  grid.innerHTML = "";
+  grid.appendChild(frag);
 }
 
 function openEdition(set) {
@@ -608,7 +669,7 @@ function openEdition(set) {
   loadEditionCards(set.code);
 }
 
-$("#edition-search").addEventListener("input", renderEditionPicker);
+$("#edition-search").addEventListener("input", debounce(() => renderEditionPicker(), 150));
 $("#edition-back").addEventListener("click", () => {
   $("#edition-detail").hidden = true;
   $("#edition-picker").hidden = false;
@@ -652,8 +713,8 @@ function renderEdition() {
   const total = cards.length;
   const pct = total ? Math.round((owned / total) * 100) : 0;
   $("#edition-stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${total.toLocaleString("pt-PT")}</div></div>
-    <div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${owned.toLocaleString("pt-PT")}</div></div>
+    <div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${numFmt.format(total)}</div></div>
+    <div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${numFmt.format(owned)}</div></div>
     <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`;
 
   const rarity = $("#edition-rarity").value;
@@ -662,8 +723,10 @@ function renderEdition() {
   if (rarity) list = list.filter((c) => c.rarity === rarity);
   if (missingOnly) list = list.filter((c) => !collection[c.id]);
 
+  const frag = document.createDocumentFragment();
+  list.forEach((card) => frag.appendChild(editionCardEl(card)));
   grid.innerHTML = "";
-  list.forEach((card) => grid.appendChild(editionCardEl(card)));
+  grid.appendChild(frag);
 }
 
 function editionCardEl(card) {
@@ -689,9 +752,10 @@ function editionCardEl(card) {
     else refreshEditionStats();
   })();
 
-  el.querySelector(".card-img-wrap").addEventListener("click", (e) => {
+  const imgWrap = el.querySelector(".card-img-wrap");
+  imgWrap.addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
-    openPreview(el.querySelector(".card-img-wrap").dataset.large);
+    openPreview(imgWrap.dataset.large);
   });
 
   return el;
@@ -705,7 +769,7 @@ function refreshEditionStats() {
   const pct = total ? Math.round((owned / total) * 100) : 0;
   const values = $("#edition-stats").querySelectorAll(".stat-value");
   if (values.length === 3) {
-    values[1].textContent = owned.toLocaleString("pt-PT");
+    values[1].textContent = numFmt.format(owned);
     values[2].textContent = `${pct}%`;
   }
 }
