@@ -355,8 +355,8 @@ a { color: var(--accent-hi); }
      reordenar para a autenticação subir para junto do ícone. */
   .topbar-inner { gap: 10px; padding: 10px 14px; }
   .auth-area { order: 2; margin-left: auto; }
-  .tabs { order: 3; width: 100%; margin-left: 0; flex: 0 0 auto; justify-content: center; }
-  .tabs .tab-icon { margin-left: 0; }
+  .tabs { order: 3; width: 100%; margin-left: 0; flex: 0 0 auto; justify-content: flex-start; }
+  .tabs .tab-icon { margin-left: auto; }
   .auth-email { max-width: 140px; }
   .brand-icon { height: 26px; }
   .brand-title { font-size: 1rem; }
