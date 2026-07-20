@@ -189,6 +189,11 @@ a { color: var(--accent-hi); }
 .card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .card-name { font-weight: 700; font-size: 0.95rem; line-height: 1.2; }
 .card-meta { color: var(--text-dim); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.4px; }
+.rarity-letter { font-weight: 700; }
+.rarity-common { color: #ffffff; }
+.rarity-uncommon { color: #9aa0a6; }
+.rarity-rare { color: #f2c94c; }
+.rarity-mythic { color: #ff8c42; }
 .card-price { color: var(--accent-hi); font-weight: 700; font-size: 0.9rem; }
 .card-actions { margin-top: auto; display: flex; gap: 6px; align-items: center; }
 .qty-controls { display: flex; align-items: center; gap: 6px; }

@@ -115,6 +115,20 @@ function esc(str) {
   }[c]));
 }
 
+// Raridade abreviada à primeira letra: C(omum), U (incomum), R(ara), M(ítica).
+function rarityLetter(rarity) {
+  return ({ common: "C", uncommon: "U", rare: "R", mythic: "M" }[rarity] ||
+    (rarity ? rarity[0].toUpperCase() : ""));
+}
+
+// Letra da raridade com cor por raridade (C branco, U cinza, R amarelo, M laranja).
+function rarityLetterHtml(rarity) {
+  const letter = rarityLetter(rarity);
+  if (!letter) return "";
+  const key = ["common", "uncommon", "rare", "mythic"].includes(rarity) ? rarity : "other";
+  return `<span class="rarity-letter rarity-${key}">${letter}</span>`;
+}
+
 /* ============================================================
    NAVEGAÇÃO ENTRE VISTAS
    ============================================================ */
@@ -476,8 +490,7 @@ function collectionMissingCardEl(card) {
       <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
-      <div class="card-name">${esc(card.name)}</div>
-      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc((card.rarity || "").toUpperCase())}</div>
+      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
       <div class="card-actions"></div>
     </div>`;
@@ -506,7 +519,7 @@ function collectionCardEl(entry) {
       ${foil ? `<span class="card-foil-badge">FOIL</span>` : ""}
     </div>
     <div class="card-body">
-      <div class="card-meta">Nº ${esc(card.collector_number || "?")}</div>
+      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
       <div class="card-price">${unit ? eur(unit) : "—"}</div>
       <div class="card-actions">
         <button class="btn btn-sm foil-btn">${foil ? "★ Foil" : "☆ Foil"}</button>
@@ -758,7 +771,7 @@ function editionCardEl(card) {
       <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
-      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc((card.rarity || "").toUpperCase())}</div>
+      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
       <div class="card-actions"></div>
     </div>`;
