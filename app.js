@@ -507,7 +507,7 @@ function collectionCardEl(entry) {
     </div>
     <div class="card-body">
       <div class="card-name">${esc(card.name)}</div>
-      <div class="card-meta">${esc(card.set_name)} · Nº ${esc(card.collector_number || "?")}</div>
+      <div class="card-meta">Nº ${esc(card.collector_number || "?")}</div>
       <div class="card-price">${unit ? eur(unit) : "—"}</div>
       <div class="card-actions">
         <button class="btn btn-sm foil-btn">${foil ? "★ Foil" : "☆ Foil"}</button>
