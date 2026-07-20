@@ -115,6 +115,12 @@ function esc(str) {
   }[c]));
 }
 
+// Raridade abreviada à primeira letra: C(omum), U (incomum), R(ara), M(ítica).
+function rarityLetter(rarity) {
+  return ({ common: "C", uncommon: "U", rare: "R", mythic: "M" }[rarity] ||
+    (rarity ? rarity[0].toUpperCase() : ""));
+}
+
 /* ============================================================
    NAVEGAÇÃO ENTRE VISTAS
    ============================================================ */
@@ -476,7 +482,7 @@ function collectionMissingCardEl(card) {
       <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
-      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc((card.rarity || "").toUpperCase())}</div>
+      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc(rarityLetter(card.rarity))}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
       <div class="card-actions"></div>
     </div>`;
@@ -757,7 +763,7 @@ function editionCardEl(card) {
       <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
-      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc((card.rarity || "").toUpperCase())}</div>
+      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc(rarityLetter(card.rarity))}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
       <div class="card-actions"></div>
     </div>`;
