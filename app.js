@@ -600,8 +600,9 @@ async function ensureSets() {
       for (const s of list) map[s.code] = s;
       setsByCode = map;
       // Alimenta também a grelha das Edições (só sets com cartas reais).
+      // Exclui os "Art Series" (só arte das cartas, não são cartas jogáveis).
       editionsState.sets = list
-        .filter((s) => s.card_count > 0 && !s.digital)
+        .filter((s) => s.card_count > 0 && !s.digital && !/art series/i.test(s.name))
         .sort((a, b) => (b.released_at || "").localeCompare(a.released_at || ""));
       editionsState.setsLoaded = true;
       return map;
