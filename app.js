@@ -207,8 +207,11 @@ function toggleFoil(id) {
 // Estado da vista Coleção: setCode = null → grelha de edições; senão → detalhe.
 let collectionView = { setCode: null };
 
-// Debounce: escrever no filtro redesenha a grelha toda; sem isto seria a cada tecla.
-$("#collection-filter").addEventListener("input", debounce(() => renderCollection(), 150));
+// Os dois filtros de texto são independentes: um filtra a grelha de SETS, o outro
+// as CARTAS dentro de um set. Escrever num não afeta o outro.
+// Debounce: escrever redesenha a grelha toda; sem isto seria a cada tecla.
+$("#collection-set-filter").addEventListener("input", debounce(() => renderCollection(), 150));
+$("#collection-card-filter").addEventListener("input", debounce(() => renderCollection(), 150));
 $("#collection-sort").addEventListener("change", renderCollection);
 $("#collection-rarity").addEventListener("change", renderCollection);
 $("#collection-show-missing").addEventListener("change", renderCollection);
@@ -288,7 +291,7 @@ function renderCollectionPicker() {
   $("#collection-picker").hidden = false;
 
   const bySet = collectionBySet();
-  const filter = $("#collection-filter").value.trim().toLowerCase();
+  const filter = $("#collection-set-filter").value.trim().toLowerCase();
   // Nome e data de cada set calculados UMA vez (o sort compara O(n log n) vezes).
   const info = Object.create(null);
   for (const c of Object.keys(bySet)) {
@@ -334,6 +337,10 @@ function renderCollectionPicker() {
     cell.addEventListener("click", () => {
       collectionView.setCode = code;
       $("#collection-show-missing").checked = false; // default: só cartas colecionadas
+      // Entra no set sem filtros de carta herdados (senão a grelha podia abrir
+      // vazia por causa de uma pesquisa antiga). O filtro de sets fica intacto.
+      $("#collection-card-filter").value = "";
+      $("#collection-rarity").value = "";
       renderCollection();
     });
     frag.appendChild(cell);
@@ -363,7 +370,7 @@ function renderCollectionDetail() {
          <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`
       : "");
 
-  const filter = $("#collection-filter").value.trim().toLowerCase();
+  const filter = $("#collection-card-filter").value.trim().toLowerCase();
   const rarity = $("#collection-rarity").value;
   const sort = $("#collection-sort").value;
   const grid = $("#collection-grid");
@@ -775,8 +782,14 @@ function refreshEditionStats() {
 }
 
 /* ============================================================
-   EXPORTAR / IMPORTAR
+   EXPORTAR / IMPORTAR / APAGAR (vista Definições)
+   ------------------------------------------------------------
+   O estado destas ações vai para #settings-status, junto dos botões: se
+   fosse para #collection-status, o utilizador ficaria noutra vista sem ver
+   o progresso, e os re-renders da coleção apagariam a mensagem.
    ============================================================ */
+const ACTION_STATUS = "#settings-status";
+
 $("#export-btn").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(collection, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -792,7 +805,7 @@ $("#export-btn").addEventListener("click", () => {
 $("#clear-btn").addEventListener("click", async () => {
   const ids = Object.keys(collection);
   if (!ids.length) {
-    setStatus("#collection-status", "A coleção já está vazia.");
+    setStatus(ACTION_STATUS, "A coleção já está vazia.");
     return;
   }
   const ok = confirm(
@@ -802,7 +815,7 @@ $("#clear-btn").addEventListener("click", async () => {
   );
   if (!ok) return;
 
-  setStatus("#collection-status", `<span class="spinner"></span>A apagar…`);
+  setStatus(ACTION_STATUS, `<span class="spinner"></span>A apagar…`);
   importing = true; // evita que snapshots parciais mexam na coleção
   try {
     if (window.Storage && window.Storage.commitMany) {
@@ -811,9 +824,9 @@ $("#clear-btn").addEventListener("click", async () => {
     collection = {};
     collectionView.setCode = null;
     renderCollection();
-    setStatus("#collection-status", "Coleção apagada.");
+    setStatus(ACTION_STATUS, "Coleção apagada.");
   } catch (err) {
-    setStatus("#collection-status", `Falha ao apagar: ${esc(err.message)} — recarrega a página.`, true);
+    setStatus(ACTION_STATUS, `Falha ao apagar: ${esc(err.message)} — recarrega a página.`, true);
   } finally {
     importing = false;
   }
@@ -857,9 +870,9 @@ $("#import-file").addEventListener("change", async (e) => {
       importing = false;
     }
     renderCollection();
-    setStatus("#collection-status", "Coleção importada com sucesso.");
+    setStatus(ACTION_STATUS, "Coleção importada com sucesso.");
   } catch (err) {
-    setStatus("#collection-status", `Falha ao importar: ${esc(err.message)}`, true);
+    setStatus(ACTION_STATUS, `Falha ao importar: ${esc(err.message)}`, true);
   } finally {
     e.target.value = "";
   }
@@ -875,7 +888,7 @@ $("#import-csv-file").addEventListener("change", async (e) => {
     const text = await file.text();
     await importMoxfieldCSV(text);
   } catch (err) {
-    setStatus("#collection-status", `Falha ao importar CSV: ${esc(err.message)}`, true);
+    setStatus(ACTION_STATUS, `Falha ao importar CSV: ${esc(err.message)}`, true);
   } finally {
     e.target.value = "";
   }
@@ -978,7 +991,7 @@ async function importMoxfieldCSV(text) {
   try {
     for (let i = 0; i < items.length; i += 75) { // 75 = limite da Scryfall por pedido
       const batch = items.slice(i, i + 75);
-      setStatus("#collection-status",
+      setStatus(ACTION_STATUS,
         `<span class="spinner"></span>A importar do Moxfield… ${Math.min(i + 75, items.length)}/${items.length} (guardadas ${imported - buffer.length})`);
       let data;
       try {
@@ -1015,7 +1028,7 @@ async function importMoxfieldCSV(text) {
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
 
   const saved = imported - buffer.length;
-  setStatus("#collection-status",
+  setStatus(ACTION_STATUS,
     (aborted
       ? `Importação interrompida: ${aborted}. Guardadas ${saved} carta(s) — volta a correr o import para continuar.`
       : `Importadas ${imported} carta(s) do Moxfield.`) +

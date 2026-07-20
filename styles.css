@@ -44,15 +44,16 @@ a { color: var(--accent-hi); }
   gap: 18px;
   flex-wrap: wrap;
 }
+/* Marca = só o ícone (o texto do título foi removido do cabeçalho). */
 .brand {
-  font-size: 1.25rem;
   margin: 0;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+  font-size: 0;
+  line-height: 0;
+  display: flex;
+  align-items: center;
 }
-.brand span { color: var(--accent); }
 .brand-icon {
-  height: 1.4em; width: auto; vertical-align: -0.32em;
+  height: 30px; width: auto; display: block;
   /* Logo Magic é preto → força branco no tema escuro (igual aos símbolos). */
   filter: brightness(0) invert(1);
 }
@@ -79,6 +80,24 @@ a { color: var(--accent-hi); }
 }
 .tab:hover { color: var(--text); background: var(--bg-elev); }
 .tab.active { color: #1a1200; background: var(--accent); }
+
+/* Separador só com ícone (definições) — quadrado, sem texto. */
+.tab-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; padding: 0;
+}
+.tab-icon svg { width: 19px; height: 19px; display: block; transition: transform 0.25s ease; }
+.tab-icon:hover svg { transform: rotate(45deg); }
+
+/* ===== Vista de definições ===== */
+.settings-group {
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px; margin-bottom: 18px;
+}
+.settings-title { margin: 0 0 4px; font-size: 1rem; }
+.settings-group .hint { margin: 0 0 14px; }
+.settings-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.settings-danger { border-color: rgba(217, 83, 79, 0.45); }
 
 /* ===== Layout ===== */
 .container { max-width: 1200px; margin: 0 auto; padding: 22px 18px 60px; }
@@ -323,7 +342,15 @@ a { color: var(--accent-hi); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 560px) {
-  .brand { font-size: 1.05rem; }
+  /* Linha 1: ícone + utilizador + Sair. Linha 2: separadores.
+     A ordem do DOM é marca → separadores → autenticação, por isso é preciso
+     reordenar para a autenticação subir para junto do ícone. */
+  .topbar-inner { gap: 10px; padding: 10px 14px; }
+  .auth-area { order: 2; margin-left: auto; }
+  .tabs { order: 3; width: 100%; margin-left: 0; justify-content: center; }
+  .auth-email { max-width: 140px; }
+  .brand-icon { height: 26px; }
+
   .card-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .set-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .set-name { font-size: 0.8rem; }
@@ -343,17 +370,26 @@ a { color: var(--accent-hi); }
   /* Ordenar + raridade lado a lado */
   #collection-sort,
   #collection-rarity { width: 100%; }
-  /* Botões preenchem a célula; os mais compridos ocupam a linha toda */
-  .collection-toolbar .btn {
-    width: 100%;
-    justify-content: center;
-    text-align: center;
-    padding: 12px 10px;
-  }
-  #import-csv-btn,
-  #clear-btn { grid-column: 1 / -1; }
 
   /* Barra de detalhe (voltar / filtros) também em bloco */
   .edition-detail-bar { gap: 8px; }
   .edition-detail-bar .rarity-filter { width: 100%; }
+
+  /* Estatísticas do set ("Já tens" / "Cartas no set" / "Completa") numa só
+     linha — por omissão o minmax(150px) da .stats partia-as em duas. */
+  #collection-set-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  #collection-set-stats .stat { padding: 10px 6px; text-align: center; }
+  #collection-set-stats .stat-label {
+    font-size: 0.58rem; letter-spacing: 0.2px; line-height: 1.25;
+  }
+  #collection-set-stats .stat-value { font-size: 1.05rem; margin-top: 2px; }
+
+  /* Botões das definições ocupam a largura toda no telemóvel */
+  .settings-group { padding: 16px 14px; }
+  .settings-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .settings-actions .btn { width: 100%; padding: 12px 10px; }
 }
