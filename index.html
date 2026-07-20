@@ -12,18 +12,25 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" />
   <link rel="preconnect" href="https://accounts.google.com" />
-  <link rel="stylesheet" href="styles.css?v=18" />
-  <link rel="icon" type="image/svg+xml" href="icon.svg?v=18" />
-  <link rel="alternate icon" href="icon.png?v=18" />
-  <link rel="apple-touch-icon" href="icon.png?v=18" />
+  <link rel="stylesheet" href="styles.css?v=20" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=20" />
+  <link rel="alternate icon" href="icon.png?v=20" />
+  <link rel="apple-touch-icon" href="icon.png?v=20" />
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <h1 class="brand"><img class="brand-icon" src="icon.svg?v=18" alt="" /> A Minha Coleção <span>Magic</span></h1>
+      <!-- Só o ícone: o alt carrega o nome da app para leitores de ecrã. -->
+      <h1 class="brand"><img class="brand-icon" src="icon.svg?v=20" alt="A Minha Coleção Magic" /></h1>
       <nav class="tabs" role="tablist">
         <button class="tab" data-view="editions" role="tab">Sets</button>
         <button class="tab active" data-view="collection" role="tab">Coleção</button>
+        <button class="tab tab-icon" data-view="settings" role="tab"
+                aria-label="Definições" title="Definições">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M19.14 12.94a7.6 7.6 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.62l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.12.55-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.86a.5.5 0 0 0 .12.62l2.03 1.58a7.6 7.6 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.62l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.39 1.04.7 1.62.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.58-.24 1.12-.55 1.62-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.62l-2.03-1.58ZM12 15.6A3.6 3.6 0 1 1 15.6 12 3.6 3.6 0 0 1 12 15.6Z"/>
+          </svg>
+        </button>
       </nav>
       <div id="auth-area" class="auth-area"></div>
     </div>
@@ -67,37 +74,15 @@
     <section id="view-collection" class="view active">
       <div id="collection-stats" class="stats"></div>
 
-      <div class="collection-toolbar">
-        <input id="collection-filter" type="search" placeholder="Filtrar na coleção…" aria-label="Filtrar coleção" />
-        <select id="collection-sort" aria-label="Ordenar">
-          <option value="name">Nome (A→Z)</option>
-          <option value="name-desc">Nome (Z→A)</option>
-          <option value="value-desc">Valor (maior)</option>
-          <option value="value">Valor (menor)</option>
-          <option value="number">Nº do set (1→∞)</option>
-          <option value="number-desc">Nº do set (∞→1)</option>
-          <option value="recent">Adicionadas recentemente</option>
-        </select>
-        <select id="collection-rarity" aria-label="Filtrar por raridade">
-          <option value="">Todas as raridades</option>
-          <option value="common">Comum</option>
-          <option value="uncommon">Incomum</option>
-          <option value="rare">Rara</option>
-          <option value="mythic">Mítica</option>
-        </select>
-        <div class="spacer"></div>
-        <button id="export-btn" class="btn">Exportar</button>
-        <button id="import-btn" class="btn">Importar JSON</button>
-        <button id="import-csv-btn" class="btn">Importar CSV (Moxfield)</button>
-        <button id="clear-btn" class="btn btn-danger">Apagar tudo</button>
-        <input id="import-file" type="file" accept="application/json,.json" hidden />
-        <input id="import-csv-file" type="file" accept="text/csv,.csv" hidden />
-      </div>
-
       <div id="collection-status" class="status" aria-live="polite"></div>
 
       <!-- Grelha de edições que tens na coleção (símbolo + nome + %) -->
       <div id="collection-picker">
+        <!-- Filtro próprio da vista de SETS (independente do das cartas) -->
+        <div class="collection-toolbar">
+          <input id="collection-set-filter" type="search"
+                 placeholder="Filtrar sets…" aria-label="Filtrar sets da coleção" />
+        </div>
         <div id="collection-sets" class="set-grid"></div>
       </div>
 
@@ -110,10 +95,65 @@
             Mostrar cartas em falta
           </label>
         </div>
+        <!-- Filtros próprios da vista de CARTAS (independentes do filtro de sets) -->
+        <div class="collection-toolbar">
+          <input id="collection-card-filter" type="search"
+                 placeholder="Filtrar cartas…" aria-label="Filtrar cartas do set" />
+          <select id="collection-sort" aria-label="Ordenar">
+            <option value="name">Nome (A→Z)</option>
+            <option value="name-desc">Nome (Z→A)</option>
+            <option value="value-desc">Valor (maior)</option>
+            <option value="value">Valor (menor)</option>
+            <option value="number">Nº do set (1→∞)</option>
+            <option value="number-desc">Nº do set (∞→1)</option>
+            <option value="recent">Adicionadas recentemente</option>
+          </select>
+          <select id="collection-rarity" aria-label="Filtrar por raridade">
+            <option value="">Todas as raridades</option>
+            <option value="common">Comum</option>
+            <option value="uncommon">Incomum</option>
+            <option value="rare">Rara</option>
+            <option value="mythic">Mítica</option>
+          </select>
+        </div>
         <h2 id="collection-set-title" class="edition-title"></h2>
         <div id="collection-set-stats" class="stats"></div>
         <div id="collection-grid" class="card-grid"></div>
       </div>
+    </section>
+
+    <!-- ===== VISTA: DEFINIÇÕES ===== -->
+    <section id="view-settings" class="view">
+      <h2 class="edition-title">Definições</h2>
+
+      <div class="settings-group">
+        <h3 class="settings-title">Backup e migração</h3>
+        <p class="hint">
+          Guarda a coleção num ficheiro JSON, ou traz cartas de outra ferramenta.
+          A coleção vive na base de dados; o backup é uma cópia extra.
+        </p>
+        <div class="settings-actions">
+          <button id="export-btn" class="btn">Exportar</button>
+          <button id="import-btn" class="btn">Importar JSON</button>
+          <button id="import-csv-btn" class="btn">Importar CSV (Moxfield)</button>
+        </div>
+      </div>
+
+      <div class="settings-group settings-danger">
+        <h3 class="settings-title">Zona perigosa</h3>
+        <p class="hint">
+          Apagar remove todas as cartas da base de dados e não pode ser desfeito.
+          Exporta primeiro se quiseres um backup.
+        </p>
+        <div class="settings-actions">
+          <button id="clear-btn" class="btn btn-danger">Apagar tudo</button>
+        </div>
+      </div>
+
+      <input id="import-file" type="file" accept="application/json,.json" hidden />
+      <input id="import-csv-file" type="file" accept="text/csv,.csv" hidden />
+
+      <div id="settings-status" class="status" aria-live="polite"></div>
     </section>
   </main>
 
@@ -132,8 +172,8 @@
     </p>
   </footer>
 
-  <script src="config.js?v=18"></script>
-  <script src="app.js?v=18"></script>
-  <script src="auth.js?v=18" type="module"></script>
+  <script src="config.js?v=20"></script>
+  <script src="app.js?v=20"></script>
+  <script src="auth.js?v=20" type="module"></script>
 </body>
 </html>
