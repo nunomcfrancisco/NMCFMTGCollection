@@ -141,6 +141,7 @@ $$(".tab").forEach((tab) => {
     $(`#view-${view}`).classList.add("active");
     if (view === "collection") { collectionView.setCode = null; renderCollection(); }
     if (view === "editions") initEditions();
+    if (view === "stats") renderStats();
   });
 });
 
@@ -216,6 +217,80 @@ function toggleFoil(id) {
 }
 
 /* ============================================================
+   VISTA "%" — estatísticas gerais + gráfico por raridade
+   ============================================================ */
+// Raridades pela ordem em que aparecem no gráfico/legenda. As cores batem
+// certo com as letras de raridade nas cartas (.rarity-* no CSS).
+const RARITY_CHART = [
+  { key: "common", label: "Comum", color: "#e7ecff" },
+  { key: "uncommon", label: "Incomum", color: "#9aa0a6" },
+  { key: "rare", label: "Rara", color: "#f2c94c" },
+  { key: "mythic", label: "Mítica", color: "#ff8c42" },
+  { key: "other", label: "Outra", color: "#7a83b8" },
+];
+
+function renderStats() {
+  const entries = Object.values(collection);
+  const unique = entries.length;
+  const totalValue = entries.reduce((s, e) => s + cardPrice(e.card, e.foil), 0);
+
+  $("#stats-summary").innerHTML = `
+    <div class="stat"><div class="stat-label">Cartas</div><div class="stat-value">${numFmt.format(unique)}</div></div>
+    <div class="stat"><div class="stat-label">Valor estimado</div><div class="stat-value">${eur(totalValue)}</div></div>`;
+
+  renderRarityChart(entries);
+}
+
+// Gráfico pie (donut) com a quantidade de cartas por raridade.
+function renderRarityChart(entries) {
+  const el = $("#rarity-chart");
+  if (!el) return;
+
+  const total = entries.length;
+  if (total === 0) {
+    el.innerHTML = `<p class="hint" style="margin:0;">Ainda não tens cartas na coleção.</p>`;
+    return;
+  }
+
+  const counts = {};
+  for (const o of RARITY_CHART) counts[o.key] = 0;
+  for (const e of entries) {
+    const r = e.card.rarity;
+    counts[r in counts ? r : "other"]++;
+  }
+
+  // Só entram no gráfico as raridades com pelo menos uma carta.
+  const segs = RARITY_CHART.filter((o) => counts[o.key] > 0);
+
+  // conic-gradient: um arco por raridade, proporcional à contagem.
+  let acc = 0;
+  const stops = segs.map((o) => {
+    const start = (acc / total) * 360;
+    acc += counts[o.key];
+    const end = (acc / total) * 360;
+    return `${o.color} ${start}deg ${end}deg`;
+  }).join(", ");
+
+  const legend = segs.map((o) => {
+    const pct = Math.round((counts[o.key] / total) * 100);
+    return `<li class="rarity-legend-item">
+        <span class="rarity-swatch" style="background:${o.color}"></span>
+        <span class="rarity-legend-label">${o.label}</span>
+        <span class="rarity-legend-count">${numFmt.format(counts[o.key])} · ${pct}%</span>
+      </li>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div class="rarity-pie" style="background: conic-gradient(${stops});">
+      <div class="rarity-pie-center">
+        <span class="rarity-pie-total">${numFmt.format(total)}</span>
+        <span class="rarity-pie-total-label">cartas</span>
+      </div>
+    </div>
+    <ul class="rarity-legend">${legend}</ul>`;
+}
+
+/* ============================================================
    RENDER DA COLEÇÃO
    ============================================================ */
 // Estado da vista Coleção: setCode = null → grelha de edições; senão → detalhe.
@@ -236,19 +311,15 @@ $("#collection-back").addEventListener("click", () => {
 
 function renderCollection() {
   const entries = Object.values(collection);
-
-  // Estatísticas gerais (topo)
   const unique = entries.length;
-  const totalValue = entries.reduce((s, e) => s + cardPrice(e.card, e.foil), 0);
-  $("#collection-stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Cartas</div><div class="stat-value">${numFmt.format(unique)}</div></div>
-    <div class="stat"><div class="stat-label">Valor estimado</div><div class="stat-value">${eur(totalValue)}</div></div>`;
+
+  // As estatísticas gerais (Cartas / Valor / gráfico) vivem na vista "%".
+  renderStats();
 
   if (unique === 0) {
     collectionView.setCode = null;
     $("#collection-detail").hidden = true;
     $("#collection-picker").hidden = false;
-    $("#collection-stats").hidden = false;
     $("#collection-status").innerHTML = "";
     $("#collection-sets").innerHTML = `
       <div class="empty" style="grid-column: 1 / -1;">
@@ -304,7 +375,6 @@ function setDisplayName(code, fallbackEntry) {
 function renderCollectionPicker() {
   $("#collection-detail").hidden = true;
   $("#collection-picker").hidden = false;
-  $("#collection-stats").hidden = false;
 
   const bySet = collectionBySet();
   const filter = $("#collection-set-filter").value.trim().toLowerCase();
@@ -369,8 +439,6 @@ function renderCollectionPicker() {
 function renderCollectionDetail() {
   $("#collection-picker").hidden = true;
   $("#collection-detail").hidden = false;
-  // Dentro de um set, os totais gerais (Cartas / Valor estimado) não interessam.
-  $("#collection-stats").hidden = true;
 
   const code = collectionView.setCode;
   const meta = setsByCode && setsByCode[code];

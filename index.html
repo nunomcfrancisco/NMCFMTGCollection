@@ -12,22 +12,24 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" />
   <link rel="preconnect" href="https://accounts.google.com" />
-  <link rel="stylesheet" href="styles.css?v=24" />
-  <link rel="icon" type="image/svg+xml" href="icon.svg?v=24" />
-  <link rel="alternate icon" href="icon.png?v=24" />
-  <link rel="apple-touch-icon" href="icon.png?v=24" />
+  <link rel="stylesheet" href="styles.css?v=25" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=25" />
+  <link rel="alternate icon" href="icon.png?v=25" />
+  <link rel="apple-touch-icon" href="icon.png?v=25" />
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
       <!-- Ícone + título ao lado. -->
       <h1 class="brand">
-        <img class="brand-icon" src="icon.svg?v=24" alt="" />
+        <img class="brand-icon" src="icon.svg?v=25" alt="" />
         <span class="brand-title">MTG Collection</span>
       </h1>
       <nav class="tabs" role="tablist">
         <button class="tab active" data-view="collection" role="tab">Coleção</button>
         <button class="tab" data-view="editions" role="tab">Sets</button>
+        <button class="tab tab-icon tab-pct" data-view="stats" role="tab"
+                aria-label="Estatísticas" title="Estatísticas">%</button>
         <button class="tab tab-icon" data-view="settings" role="tab"
                 aria-label="Definições" title="Definições">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -75,8 +77,6 @@
 
     <!-- ===== VISTA: COLEÇÃO ===== -->
     <section id="view-collection" class="view active">
-      <div id="collection-stats" class="stats"></div>
-
       <div id="collection-status" class="status" aria-live="polite"></div>
 
       <!-- Grelha de edições que tens na coleção (símbolo + nome + %) -->
@@ -123,6 +123,18 @@
         </div>
         <div id="collection-set-stats" class="stats"></div>
         <div id="collection-grid" class="card-grid"></div>
+      </div>
+    </section>
+
+    <!-- ===== VISTA: ESTATÍSTICAS ===== -->
+    <section id="view-stats" class="view">
+      <h2 class="edition-title">Estatísticas</h2>
+
+      <div id="stats-summary" class="stats"></div>
+
+      <div class="settings-group">
+        <h3 class="settings-title">Cartas por raridade</h3>
+        <div id="rarity-chart" class="rarity-chart"></div>
       </div>
     </section>
 
@@ -176,8 +188,8 @@
     </p>
   </footer>
 
-  <script src="config.js?v=24"></script>
-  <script src="app.js?v=24"></script>
-  <script src="auth.js?v=24" type="module"></script>
+  <script src="config.js?v=25"></script>
+  <script src="app.js?v=25"></script>
+  <script src="auth.js?v=25" type="module"></script>
 </body>
 </html>
