@@ -1,16 +1,22 @@
 :root {
-  --bg: #0f1115;
-  --bg-elev: #171a21;
-  --bg-elev-2: #1e222b;
-  --border: #2a2f3a;
-  --text: #e7e9ee;
-  --text-dim: #9aa2b1;
-  --accent: #c8963e;
-  --accent-hi: #e6b45a;
-  --red: #d9534f;
-  --green: #4caf72;
+  --bg: #0b0e1f;
+  --bg-elev: #141a33;
+  --bg-elev-2: #1c2447;
+  --border: #2c3562;
+  --text: #e7ecff;
+  --text-dim: #98a4d4;
+  --accent: #38bdf8;
+  --accent-hi: #7dd3fc;
+  /* Texto escuro sobre superfícies com a cor de destaque (botões, tabs). */
+  --on-accent: #05132a;
+  /* Toques "neon" para elementos multicolor (selo foil, brilhos). */
+  --neon-magenta: #e879f9;
+  --neon-cyan: #22d3ee;
+  --neon-lime: #a3e635;
+  --red: #f4636e;
+  --green: #4ade80;
   --radius: 12px;
-  --shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
 }
 
 * { box-sizing: border-box; }
@@ -31,7 +37,7 @@ a { color: var(--accent-hi); }
   position: sticky;
   top: 0;
   z-index: 20;
-  background: linear-gradient(180deg, #14171d, #101319);
+  background: linear-gradient(180deg, #121a38, #0b0e1f);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(6px);
 }
@@ -87,7 +93,7 @@ a { color: var(--accent-hi); }
   transition: all 0.15s ease;
 }
 .tab:hover { color: var(--text); background: var(--bg-elev); }
-.tab.active { color: #1a1200; background: var(--accent); }
+.tab.active { color: var(--on-accent); background: var(--accent); }
 
 /* Separador só com ícone (definições) — quadrado, sem texto. */
 .tab-icon {
@@ -105,7 +111,7 @@ a { color: var(--accent-hi); }
 .settings-title { margin: 0 0 4px; font-size: 1rem; }
 .settings-group .hint { margin: 0 0 14px; }
 .settings-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.settings-danger { border-color: rgba(217, 83, 79, 0.45); }
+.settings-danger { border-color: rgba(244, 99, 110, 0.45); }
 
 /* ===== Layout ===== */
 .container { max-width: 1200px; margin: 0 auto; padding: 22px 18px 60px; }
@@ -140,8 +146,8 @@ a { color: var(--accent-hi); }
   transition: all 0.15s ease;
 }
 .btn:hover { border-color: var(--accent); color: var(--accent-hi); }
-.btn-primary { background: var(--accent); color: #1a1200; border-color: var(--accent); }
-.btn-primary:hover { background: var(--accent-hi); color: #1a1200; }
+.btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-hi); color: var(--on-accent); }
 .btn-sm { padding: 6px 10px; font-size: 0.82rem; border-radius: 8px; }
 .btn-danger { color: var(--red); border-color: var(--red); }
 .btn-danger:hover { background: var(--red); color: #fff; }
@@ -177,8 +183,8 @@ a { color: var(--accent-hi); }
 }
 .card-foil-badge {
   position: absolute; top: 8px; left: 8px;
-  background: linear-gradient(120deg,#7b5cff,#4cc9f0,#f0c04c);
-  color:#111; border-radius: 999px; padding: 2px 9px; font-weight:700; font-size: 0.72rem;
+  background: linear-gradient(120deg,var(--neon-magenta),var(--neon-cyan),var(--neon-lime));
+  color:#05132a; border-radius: 999px; padding: 2px 9px; font-weight:700; font-size: 0.72rem;
 }
 .card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .card-name { font-weight: 700; font-size: 0.95rem; line-height: 1.2; }
@@ -301,7 +307,7 @@ a { color: var(--accent-hi); }
 /* ===== Porta de entrada (login obrigatório) ===== */
 .auth-gate {
   position: fixed; inset: 0; z-index: 60;
-  background: rgba(10, 12, 16, 0.92);
+  background: rgba(7, 10, 25, 0.92);
   backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
