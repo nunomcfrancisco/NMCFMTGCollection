@@ -23,6 +23,12 @@ const configured =
   !String(cfg.apiKey).includes("YOUR_") &&
   !String(cfg.projectId).includes("YOUR_");
 
+// App de um só dono: só esta conta pode entrar (vazio = qualquer conta).
+const allowedEmail = String(window.ALLOWED_EMAIL || "").trim().toLowerCase();
+const isAllowed = (user) =>
+  !allowedEmail ||
+  String(user?.email || "").trim().toLowerCase() === allowedEmail;
+
 const authArea = document.getElementById("auth-area");
 const gate = document.getElementById("auth-gate");
 
@@ -30,6 +36,7 @@ let auth = null;
 let db = null;
 let currentUser = null;
 let unsubscribe = null; // cancela o onSnapshot ao sair
+let rejected = false;   // true quando entrou uma conta não autorizada
 
 /* ============================================================
    API pública usada pelo app.js
@@ -89,6 +96,14 @@ if (!configured) {
 
 function init() {
   onAuthStateChanged(auth, (user) => {
+    // Conta autenticada mas não autorizada → recusa e termina sessão.
+    if (user && !isAllowed(user)) {
+      rejected = true;
+      signOut(auth); // dispara novo onAuthStateChanged com user = null
+      return;
+    }
+    if (user) rejected = false; // entrou a conta certa
+
     const wasSignedIn = !!currentUser;
     currentUser = user || null;
     renderAuth();
@@ -155,7 +170,11 @@ function updateGate() {
       <button class="btn btn-google" id="google-btn" type="button">
         <span class="g-icon" aria-hidden="true">G</span> Entrar com Google
       </button>
-      <p class="gate-note" id="gate-note">Um clique — sem passwords.</p>
+      <p class="gate-note ${rejected ? "gate-error" : ""}" id="gate-note">${
+        rejected
+          ? "Esta conta não tem acesso a esta coleção. Entra com a conta autorizada."
+          : "Um clique — sem passwords."
+      }</p>
     </div>`;
 
   document.getElementById("google-btn").addEventListener("click", () => {
