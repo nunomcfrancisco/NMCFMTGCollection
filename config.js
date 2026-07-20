@@ -22,3 +22,11 @@ window.FIREBASE_CONFIG = {
   appId: "1:259570155039:web:b49a66b4009fa14aa61f2a",
   measurementId: "G-5PTKH11H8M",
 };
+
+/* ------------------------------------------------------------
+   App de um só dono: apenas esta conta Google pode entrar.
+   Qualquer outra conta é recusada (na app e nas Firestore Rules,
+   ver firestore.rules). Deixa vazio ("") para permitir qualquer
+   conta Google.
+   ------------------------------------------------------------ */
+window.ALLOWED_EMAIL = "nunomcfrancisco@gmail.com";

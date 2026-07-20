@@ -342,6 +342,7 @@ a { color: var(--accent-hi); }
 .gate-form input:focus { outline: none; border-color: var(--accent); }
 .gate-form .btn { width: 100%; justify-content: center; }
 .gate-note { margin: 14px 0 0; font-size: 0.82rem; }
+.gate-note.gate-error { color: #ff6b9d; font-weight: 600; }
 
 /* Botão "Entrar com Google" */
 .btn-google {

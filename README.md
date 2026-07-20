@@ -42,8 +42,26 @@ Ao abrir a app aparece uma **porta de entrada**: clicas em **Entrar com Google**
 coleção é carregada da base de dados. Cada carta é uma *document* em
 `users/{uid}/cards/{cardId}`; adicionar/remover/marcar *foil* grava logo no Firestore.
 Os valores do `config.js` são públicos por design — a segurança vem das
-*Firestore Security Rules* ([`firestore.rules`](firestore.rules)), que impedem cada
-utilizador de aceder aos dados dos outros.
+*Firestore Security Rules* ([`firestore.rules`](firestore.rules)).
+
+### App de um só dono
+
+Esta app tem **um único dono**: só a conta `nunomcfrancisco@gmail.com` pode entrar.
+Qualquer outra conta Google é recusada, com uma mensagem na porta de entrada.
+
+Isto é aplicado em duas camadas:
+
+- **Na app** (UX): [`config.js`](config.js) tem `window.ALLOWED_EMAIL` — se entrares
+  com outra conta, a sessão é terminada logo. Deixa a variável vazia (`""`) para
+  voltar a permitir qualquer conta Google.
+- **Na base de dados** (segurança real): as [`firestore.rules`](firestore.rules) só
+  permitem ler/escrever a essa conta (email verificado). O cliente pode ser
+  contornado; as *rules* não.
+
+> **Importante:** ao mudar o email (ou de dono), atualiza-o **nos dois sítios** —
+> `ALLOWED_EMAIL` no `config.js` **e** o email nas `firestore.rules` — e **volta a
+> publicar** as rules no Firebase Console (**Firestore Database → Rules → Publish**),
+> senão a restrição de segurança não tem efeito.
 
 > **Offline:** o Firestore mantém uma cache local; sem ligação continuas a ver e a
 > editar a coleção, e as alterações sincronizam assim que a ligação voltar.
