@@ -1,0 +1,30 @@
+# Definições locais do Claude Code (contêm caminhos da própria máquina)
+.claude/
+
+# Dependências e artefactos de ferramentas (o site em si não precisa de build)
+node_modules/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Variáveis de ambiente — nunca versionar
+# Nota: o config.js NÃO entra aqui: as chaves do Firebase são públicas por
+# design (vão no site) e a app não funciona sem elas. Quem protege os dados
+# são as firestore.rules.
+.env
+.env.local
+
+# Firebase (emuladores e cache local, caso se voltem a usar por aqui)
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Sistema operativo / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
