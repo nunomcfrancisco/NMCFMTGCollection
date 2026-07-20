@@ -70,9 +70,11 @@ a { color: var(--accent-hi); }
   white-space: nowrap;
 }
 
-/* Sets/Coleção encostados à esquerda; a roda dentada é empurrada à direita. */
+/* Sets/Coleção encostados à esquerda; os ícones (% + roda dentada) vão juntos
+   para a direita. Só o primeiro ícone é empurrado; o seguinte fica-lhe colado. */
 .tabs { display: flex; gap: 6px; flex: 1; }
 .tabs .tab-icon { margin-left: auto; }
+.tabs .tab-icon + .tab-icon { margin-left: 0; }
 
 /* ===== Área de autenticação ===== */
 .auth-area { display: flex; align-items: center; gap: 8px; }
