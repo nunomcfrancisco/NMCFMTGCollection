@@ -560,7 +560,7 @@ async function fetchSetCards(code) {
 }
 
 // Cache local da lista de sets (não muda quase nunca) — evita puxar ~1 MB a cada visita.
-const SETS_CACHE_KEY = "mtg-sets-cache-v1";
+const SETS_CACHE_KEY = "mtg-sets-cache-v2";
 const SETS_TTL = 24 * 60 * 60 * 1000; // 1 dia
 
 function readSetsCache(ignoreAge) {
@@ -589,6 +589,7 @@ async function ensureSets() {
           list = (data.data || []).map((s) => ({
             code: s.code, name: s.name, icon_svg_uri: s.icon_svg_uri,
             card_count: s.card_count, released_at: s.released_at, digital: s.digital,
+            set_type: s.set_type,
           }));
           writeSetsCache(list);
         } catch (err) {
@@ -600,9 +601,12 @@ async function ensureSets() {
       for (const s of list) map[s.code] = s;
       setsByCode = map;
       // Alimenta também a grelha das Edições (só sets com cartas reais).
-      // Exclui os "Art Series" (só arte das cartas, não são cartas jogáveis).
+      // Exclui "Art Series" (só arte) e sets de tokens (set_type "token") —
+      // nenhum são cartas jogáveis para a coleção.
       editionsState.sets = list
-        .filter((s) => s.card_count > 0 && !s.digital && !/art series/i.test(s.name))
+        .filter((s) =>
+          s.card_count > 0 && !s.digital &&
+          s.set_type !== "token" && !/art series/i.test(s.name))
         .sort((a, b) => (b.released_at || "").localeCompare(a.released_at || ""));
       editionsState.setsLoaded = true;
       return map;
