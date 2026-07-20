@@ -44,21 +44,29 @@ a { color: var(--accent-hi); }
   gap: 18px;
   flex-wrap: wrap;
 }
-/* Marca = só o ícone (o texto do título foi removido do cabeçalho). */
+/* Marca = ícone + título ao lado. */
 .brand {
   margin: 0;
-  font-size: 0;
-  line-height: 0;
+  line-height: 1;
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 .brand-icon {
   height: 30px; width: auto; display: block;
   /* Logo Magic é preto → força branco no tema escuro (igual aos símbolos). */
   filter: brightness(0) invert(1);
 }
+.brand-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
 
-.tabs { display: flex; gap: 6px; margin-left: auto; }
+/* Sets/Coleção encostados à esquerda; a roda dentada é empurrada à direita. */
+.tabs { display: flex; gap: 6px; flex: 1; }
+.tabs .tab-icon { margin-left: auto; }
 
 /* ===== Área de autenticação ===== */
 .auth-area { display: flex; align-items: center; gap: 8px; }
@@ -347,9 +355,11 @@ a { color: var(--accent-hi); }
      reordenar para a autenticação subir para junto do ícone. */
   .topbar-inner { gap: 10px; padding: 10px 14px; }
   .auth-area { order: 2; margin-left: auto; }
-  .tabs { order: 3; width: 100%; margin-left: 0; justify-content: center; }
+  .tabs { order: 3; width: 100%; margin-left: 0; flex: 0 0 auto; justify-content: center; }
+  .tabs .tab-icon { margin-left: 0; }
   .auth-email { max-width: 140px; }
   .brand-icon { height: 26px; }
+  .brand-title { font-size: 1rem; }
 
   .card-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .set-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
