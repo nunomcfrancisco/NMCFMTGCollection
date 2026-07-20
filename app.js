@@ -758,7 +758,6 @@ function editionCardEl(card) {
       <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
-      <div class="card-name">${esc(card.name)}</div>
       <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${esc((card.rarity || "").toUpperCase())}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
       <div class="card-actions"></div>
