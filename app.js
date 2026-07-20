@@ -234,6 +234,7 @@ function renderCollection() {
     collectionView.setCode = null;
     $("#collection-detail").hidden = true;
     $("#collection-picker").hidden = false;
+    $("#collection-stats").hidden = false;
     $("#collection-status").innerHTML = "";
     $("#collection-sets").innerHTML = `
       <div class="empty" style="grid-column: 1 / -1;">
@@ -289,6 +290,7 @@ function setDisplayName(code, fallbackEntry) {
 function renderCollectionPicker() {
   $("#collection-detail").hidden = true;
   $("#collection-picker").hidden = false;
+  $("#collection-stats").hidden = false;
 
   const bySet = collectionBySet();
   const filter = $("#collection-set-filter").value.trim().toLowerCase();
@@ -353,6 +355,8 @@ function renderCollectionPicker() {
 function renderCollectionDetail() {
   $("#collection-picker").hidden = true;
   $("#collection-detail").hidden = false;
+  // Dentro de um set, os totais gerais (Cartas / Valor estimado) não interessam.
+  $("#collection-stats").hidden = true;
 
   const code = collectionView.setCode;
   const meta = setsByCode && setsByCode[code];
@@ -362,7 +366,11 @@ function renderCollectionDetail() {
   const total = meta ? meta.card_count : 0;
   const pct = total ? Math.round((owned / total) * 100) : null;
 
-  $("#collection-set-title").textContent = name;
+  // Símbolo do set antes do nome (quando já temos os metadados carregados).
+  const icon = meta && meta.icon_svg_uri;
+  $("#collection-set-title").innerHTML =
+    (icon ? `<img class="set-symbol set-title-symbol" src="${esc(icon)}" alt="" />` : "") +
+    `<span>${esc(name)}</span>`;
   $("#collection-set-stats").innerHTML =
     `<div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${numFmt.format(owned)}</div></div>` +
     (total

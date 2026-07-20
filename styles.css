@@ -249,6 +249,12 @@ a { color: var(--accent-hi); }
 /* ===== Detalhe da edição ===== */
 .edition-detail-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .edition-title { font-size: 1.3rem; margin: 4px 0 12px; }
+/* Título de detalhe do set: símbolo + nome lado a lado, no topo. */
+.set-detail-title { display: flex; align-items: center; gap: 10px; }
+.set-title-symbol {
+  width: 30px; height: 30px; flex: 0 0 auto;
+  opacity: 1; /* estático no título — sem hover/animação */
+}
 .check-inline {
   display: flex; align-items: center; gap: 8px;
   color: var(--text-dim); font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap;
