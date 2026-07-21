@@ -1,106 +1,106 @@
-# 🃏 A Minha Coleção Magic
+# 🃏 My Magic Collection
 
-Web app **grátis** para gerir a tua coleção de *Magic: The Gathering*.
+**Free** web app to manage your *Magic: The Gathering* collection.
 
-- **Grátis:** interface no GitHub Pages + base de dados no plano gratuito do [Firebase](https://firebase.google.com) (Firestore).
-- **Sem chaves de API de cartas:** os dados e imagens das cartas vêm da [Scryfall](https://scryfall.com).
-- **Na nuvem:** a coleção é guardada no **Firestore** (uma *document* por carta), não no browser. Entras com a tua conta **Google** e tens a mesma coleção em qualquer dispositivo, com sincronização em tempo real. O Firestore trata da cache offline.
+- **Free:** interface on GitHub Pages + database on the free plan of [Firebase](https://firebase.google.com) (Firestore).
+- **No card API keys:** card data and images come from [Scryfall](https://scryfall.com).
+- **In the cloud:** the collection is stored in **Firestore** (one document per card), not in the browser. You sign in with your **Google** account and get the same collection on any device, with real-time sync. Firestore handles the offline cache.
 
-## Funcionalidades
+## Features
 
-- 🗂️ Percorrer **edições** (sets) e marcar as cartas que tens (as que faltam ficam a cinzento)
-- ➕ Adicionar cartas à coleção com marca de *foil*
-- 📊 Estatísticas: total de cartas, cartas únicas e valor estimado (em EUR)
-- 🔃 Filtrar e ordenar (nome, valor, quantidade, recentes)
-- 💾 Exportar / importar a coleção em JSON (backup e migração entre dispositivos)
-- 🖼️ Pré-visualização da carta em grande
+- 🗂️ Browse **sets** and mark the cards you have (missing ones are grayed out)
+- ➕ Add cards to the collection with a *foil* marker
+- 📊 Statistics: total cards, unique cards and estimated value (in EUR)
+- 🔃 Filter and sort (name, value, quantity, recent)
+- 💾 Export / import the collection as JSON (backup and migration between devices)
+- 🖼️ Large card preview
 
-## Base de dados (obrigatória)
+## Database (required)
 
-A coleção vive no **Firestore** do [Firebase](https://firebase.google.com) — plano
-gratuito (*Spark*), sem cartão de crédito. Configura uma vez:
+The collection lives in [Firebase](https://firebase.google.com)'s **Firestore** — free
+plan (*Spark*), no credit card. Set it up once:
 
-1. Cria um projeto grátis na [Firebase Console](https://console.firebase.google.com).
-2. **Firestore Database → Create database** (modo *Production*, escolhe uma localização).
-3. Vai ao separador **Rules**, cola o conteúdo de [`firestore.rules`](firestore.rules) e clica em **Publish** (garante que cada utilizador só acede às suas cartas).
-4. **Authentication → Get started → Sign-in method →** ativa o provider **Google**.
-5. **Project settings (⚙️) → General →** em *Your apps*, adiciona uma **Web app** (`</>`) e copia o objeto `firebaseConfig`. Cola-o no ficheiro [`config.js`](config.js):
+1. Create a free project in the [Firebase Console](https://console.firebase.google.com).
+2. **Firestore Database → Create database** (*Production* mode, pick a location).
+3. Go to the **Rules** tab, paste the contents of [`firestore.rules`](firestore.rules) and click **Publish** (ensures each user only accesses their own cards).
+4. **Authentication → Get started → Sign-in method →** enable the **Google** provider.
+5. **Project settings (⚙️) → General →** under *Your apps*, add a **Web app** (`</>`) and copy the `firebaseConfig` object. Paste it into the [`config.js`](config.js) file:
    ```js
    window.FIREBASE_CONFIG = {
      apiKey: "…",
-     authDomain: "o-teu-projeto.firebaseapp.com",
-     projectId: "o-teu-projeto",
-     storageBucket: "o-teu-projeto.appspot.com",
+     authDomain: "your-project.firebaseapp.com",
+     projectId: "your-project",
+     storageBucket: "your-project.appspot.com",
      messagingSenderId: "…",
      appId: "…",
    };
    ```
-6. **Authentication → Settings → Authorized domains →** adiciona o domínio da tua app
-   (ex.: `<utilizador>.github.io`) para o login com Google funcionar aí.
+6. **Authentication → Settings → Authorized domains →** add your app's domain
+   (e.g. `<user>.github.io`) so Google login works there.
 
-Ao abrir a app aparece uma **porta de entrada**: clicas em **Entrar com Google** e a
-coleção é carregada da base de dados. Cada carta é uma *document* em
-`users/{uid}/cards/{cardId}`; adicionar/remover/marcar *foil* grava logo no Firestore.
-Os valores do `config.js` são públicos por design — a segurança vem das
+When you open the app an **entry gate** appears: you click **Sign in with Google** and the
+collection is loaded from the database. Each card is a document in
+`users/{uid}/cards/{cardId}`; adding/removing/marking *foil* writes to Firestore right away.
+The values in `config.js` are public by design — security comes from the
 *Firestore Security Rules* ([`firestore.rules`](firestore.rules)).
 
-### App de um só dono
+### Single-owner app
 
-Esta app tem **um único dono**: só a conta `nunomcfrancisco@gmail.com` pode entrar.
-Qualquer outra conta Google é recusada, com uma mensagem na porta de entrada.
+This app has a **single owner**: only the `nunomcfrancisco@gmail.com` account can sign in.
+Any other Google account is rejected, with a message on the entry gate.
 
-Isto é aplicado em duas camadas:
+This is enforced at two layers:
 
-- **Na app** (UX): [`config.js`](config.js) tem `window.ALLOWED_EMAIL` — se entrares
-  com outra conta, a sessão é terminada logo. Deixa a variável vazia (`""`) para
-  voltar a permitir qualquer conta Google.
-- **Na base de dados** (segurança real): as [`firestore.rules`](firestore.rules) só
-  permitem ler/escrever a essa conta (email verificado). O cliente pode ser
-  contornado; as *rules* não.
+- **In the app** (UX): [`config.js`](config.js) has `window.ALLOWED_EMAIL` — if you sign in
+  with another account, the session is ended immediately. Leave the variable empty (`""`) to
+  allow any Google account again.
+- **In the database** (real security): the [`firestore.rules`](firestore.rules) only
+  allow reading/writing for that account (verified email). The client can be
+  bypassed; the *rules* cannot.
 
-> **Importante:** ao mudar o email (ou de dono), atualiza-o **nos dois sítios** —
-> `ALLOWED_EMAIL` no `config.js` **e** o email nas `firestore.rules` — e **volta a
-> publicar** as rules no Firebase Console (**Firestore Database → Rules → Publish**),
-> senão a restrição de segurança não tem efeito.
+> **Important:** when you change the email (or the owner), update it **in both places** —
+> `ALLOWED_EMAIL` in `config.js` **and** the email in `firestore.rules` — and **re-publish**
+> the rules in the Firebase Console (**Firestore Database → Rules → Publish**),
+> otherwise the security restriction has no effect.
 
-> **Offline:** o Firestore mantém uma cache local; sem ligação continuas a ver e a
-> editar a coleção, e as alterações sincronizam assim que a ligação voltar.
+> **Offline:** Firestore keeps a local cache; without a connection you can still view and
+> edit the collection, and the changes sync as soon as the connection is back.
 
-## Como usar localmente
+## How to use locally
 
-Como a interface é só HTML/CSS/JS, basta abrir o `index.html` num browser. Para
-evitar restrições do browser, corre um servidor local simples:
+Since the interface is just HTML/CSS/JS, you can simply open `index.html` in a browser. To
+avoid browser restrictions, run a simple local server:
 
 ```bash
 python3 -m http.server 8000
-# abre http://localhost:8000
+# open http://localhost:8000
 ```
 
-Precisas na mesma de ter o `config.js` preenchido (ver acima) para a base de dados funcionar.
+You still need `config.js` filled in (see above) for the database to work.
 
-## Publicar no GitHub Pages (grátis)
+## Publish on GitHub Pages (free)
 
-O repositório já inclui um workflow (`.github/workflows/deploy.yml`) que publica
-automaticamente. Só precisas de ativar o Pages uma vez:
+The repository already includes a workflow (`.github/workflows/deploy.yml`) that publishes
+automatically. You only need to enable Pages once:
 
-1. No GitHub, vai a **Settings → Pages**.
-2. Em **Build and deployment → Source**, escolhe **GitHub Actions**.
-3. Faz push para o branch principal — a app fica em
-   `https://<utilizador>.github.io/<repositorio>/`.
+1. On GitHub, go to **Settings → Pages**.
+2. Under **Build and deployment → Source**, choose **GitHub Actions**.
+3. Push to the main branch — the app will be at
+   `https://<user>.github.io/<repository>/`.
 
-## Migração da coleção (JSON)
+## Collection migration (JSON)
 
-Se tinhas dados noutra versão, usa o botão **Exportar** para gravar a coleção em
-JSON e, depois de entrares na versão Firebase, o **Importar JSON** volta a colocá-la
-na base de dados (cada carta passa a ser uma *document* no Firestore).
+If you had data in another version, use the **Export** button to save the collection as
+JSON and, after signing in to the Firebase version, **Import JSON** puts it back
+into the database (each card becomes a document in Firestore).
 
-## Notas
+## Notes
 
-- Os preços são estimativas da Scryfall e mudam ao longo do tempo.
-- A coleção está na base de dados; ainda assim, usa **Exportar** de vez em quando
-  para um backup extra em JSON.
+- Prices are estimates from Scryfall and change over time.
+- The collection is in the database; even so, use **Export** from time to time
+  for an extra JSON backup.
 
 ---
 
-Dados e imagens © [Scryfall](https://scryfall.com). Este projeto não é afiliado
-à Wizards of the Coast.
+Data and images © [Scryfall](https://scryfall.com). This project is not affiliated
+with Wizards of the Coast.

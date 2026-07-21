@@ -7,9 +7,9 @@
   --text-dim: #98a4d4;
   --accent: #38bdf8;
   --accent-hi: #7dd3fc;
-  /* Texto escuro sobre superfícies com a cor de destaque (botões, tabs). */
+  /* Dark text on surfaces with the accent color (buttons, tabs). */
   --on-accent: #05132a;
-  /* Toques "neon" para elementos multicolor (selo foil, brilhos). */
+  /* "Neon" touches for multicolor elements (foil badge, glows). */
   --neon-magenta: #e879f9;
   --neon-cyan: #22d3ee;
   --neon-lime: #a3e635;
@@ -50,7 +50,7 @@ a { color: var(--accent-hi); }
   gap: 18px;
   flex-wrap: wrap;
 }
-/* Marca = ícone + título ao lado. */
+/* Brand = icon + title side by side. */
 .brand {
   margin: 0;
   line-height: 1;
@@ -60,7 +60,7 @@ a { color: var(--accent-hi); }
 }
 .brand-icon {
   height: 30px; width: auto; display: block;
-  /* Logo Magic é preto → força branco no tema escuro (igual aos símbolos). */
+  /* The Magic logo is black → force white on the dark theme (same as the symbols). */
   filter: brightness(0) invert(1);
 }
 .brand-title {
@@ -70,13 +70,13 @@ a { color: var(--accent-hi); }
   white-space: nowrap;
 }
 
-/* Sets/Coleção encostados à esquerda; os ícones (% + roda dentada) vão juntos
-   para a direita. Só o primeiro ícone é empurrado; o seguinte fica-lhe colado. */
+/* Sets/Collection pinned to the left; the icons (% + gear) go together
+   to the right. Only the first icon is pushed; the next one sits beside it. */
 .tabs { display: flex; gap: 6px; flex: 1; }
 .tabs .tab-icon { margin-left: auto; }
 .tabs .tab-icon + .tab-icon { margin-left: 0; }
 
-/* ===== Área de autenticação ===== */
+/* ===== Authentication area ===== */
 .auth-area { display: flex; align-items: center; gap: 8px; }
 .auth-email {
   color: var(--accent-hi); font-size: 0.85rem; font-weight: 600;
@@ -97,7 +97,7 @@ a { color: var(--accent-hi); }
 .tab:hover { color: var(--text); background: var(--bg-elev); }
 .tab.active { color: var(--on-accent); background: var(--accent); }
 
-/* Separador só com ícone (definições) — quadrado, sem texto. */
+/* Icon-only tab (settings) — square, no text. */
 .tab-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 38px; height: 38px; padding: 0;
@@ -105,10 +105,10 @@ a { color: var(--accent-hi); }
 .tab-icon svg { width: 19px; height: 19px; display: block; transition: transform 0.25s ease; }
 .tab-icon:hover svg { transform: rotate(45deg); }
 
-/* Separador "%" (estatísticas) — símbolo em texto, não SVG. */
+/* "%" tab (statistics) — symbol as text, not SVG. */
 .tab-pct { font-size: 1.15rem; font-weight: 800; line-height: 1; }
 
-/* ===== Vista de definições ===== */
+/* ===== Settings view ===== */
 .settings-group {
   background: var(--bg-elev); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 18px 20px; margin-bottom: 18px;
@@ -118,13 +118,13 @@ a { color: var(--accent-hi); }
 .settings-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .settings-danger { border-color: rgba(244, 99, 110, 0.45); }
 
-/* ===== Gráfico de cartas por raridade (vista "%") ===== */
+/* ===== Cards-by-rarity chart ("%" view) ===== */
 .rarity-chart { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; }
 .rarity-pie {
   position: relative; flex: 0 0 auto;
   width: 190px; height: 190px; border-radius: 50%;
 }
-/* Buraco central → donut. */
+/* Central hole → donut. */
 .rarity-pie::after {
   content: ""; position: absolute; inset: 27%;
   background: var(--bg-elev); border-radius: 50%;
@@ -181,6 +181,8 @@ a { color: var(--accent-hi); }
 .btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .btn-primary:hover { background: var(--accent-hi); color: var(--on-accent); }
 .btn-sm { padding: 6px 10px; font-size: 0.82rem; border-radius: 8px; }
+.btn-icon { display: inline-flex; align-items: center; justify-content: center; }
+.btn-icon svg { width: 18px; height: 18px; display: block; }
 .btn-danger { color: var(--red); border-color: var(--red); }
 .btn-danger:hover { background: var(--red); color: #fff; }
 
@@ -208,7 +210,7 @@ a { color: var(--accent-hi); }
 .card-img-wrap { position: relative; aspect-ratio: 488 / 680; background: var(--bg-elev-2); cursor: zoom-in; }
 .card-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.3s ease; }
 .card-img-wrap.img-loaded img { opacity: 1; }
-/* Spinner enquanto a imagem da carta ainda está a carregar. */
+/* Spinner while the card image is still loading. */
 .card-img-wrap::after {
   content: ""; position: absolute; top: 50%; left: 50%;
   width: 24px; height: 24px; margin: -12px 0 0 -12px;
@@ -250,7 +252,7 @@ a { color: var(--accent-hi); }
 
 /* ===== Stats ===== */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 22px; }
-/* O display:grid acima ganha ao [hidden] do browser; isto repõe o esconder. */
+/* The display:grid above overrides the browser's [hidden]; this restores hiding. */
 .stats[hidden] { display: none; }
 .stat {
   background: var(--bg-elev); border: 1px solid var(--border);
@@ -259,7 +261,7 @@ a { color: var(--accent-hi); }
 .stat-label { color: var(--text-dim); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
 .stat-value { font-size: 1.55rem; font-weight: 800; margin-top: 4px; color: var(--accent-hi); }
 
-/* ===== Cartas em falta (grayscale) ===== */
+/* ===== Missing cards (grayscale) ===== */
 .card.not-owned .card-img-wrap img {
   filter: grayscale(1) brightness(0.72);
   transition: filter 0.15s ease;
@@ -267,7 +269,7 @@ a { color: var(--accent-hi); }
 .card.not-owned:hover .card-img-wrap img { filter: grayscale(0.35) brightness(0.9); }
 .card.not-owned { opacity: 0.92; }
 
-/* ===== Edições — filtro e grelha de símbolos ===== */
+/* ===== Sets — filter and symbol grid ===== */
 #edition-search {
   width: 100%; margin: 4px 0 16px;
   padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border);
@@ -290,7 +292,7 @@ a { color: var(--accent-hi); }
 .set-cell:hover { transform: translateY(-3px); border-color: var(--accent); }
 .set-symbol {
   width: 46px; height: 46px; object-fit: contain;
-  /* Símbolos SVG da Scryfall são pretos → força branco no tema escuro. */
+  /* Scryfall SVG symbols are black → force white on the dark theme. */
   filter: brightness(0) invert(1);
   opacity: 0.9; transition: opacity 0.12s ease, transform 0.12s ease;
 }
@@ -301,14 +303,14 @@ a { color: var(--accent-hi); }
 }
 .set-pct { color: var(--accent-hi); font-weight: 800; font-size: 0.95rem; }
 
-/* ===== Detalhe da edição ===== */
+/* ===== Set detail ===== */
 .edition-detail-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .edition-title { font-size: 1.3rem; margin: 4px 0 12px; }
-/* Título de detalhe do set: símbolo + nome lado a lado, no topo. */
+/* Set detail title: symbol + name side by side, at the top. */
 .set-detail-title { display: flex; align-items: center; gap: 10px; }
 .set-title-symbol {
   width: 30px; height: 30px; flex: 0 0 auto;
-  opacity: 1; /* estático no título — sem hover/animação */
+  opacity: 1; /* static in the title — no hover/animation */
 }
 .check-inline {
   display: flex; align-items: center; gap: 8px;
@@ -351,7 +353,7 @@ a { color: var(--accent-hi); }
 .footer { border-top: 1px solid var(--border); color: var(--text-dim); font-size: 0.85rem; }
 .footer p { max-width: 1200px; margin: 0 auto; padding: 18px; text-align: center; }
 
-/* ===== Porta de entrada (login obrigatório) ===== */
+/* ===== Entry gate (login required) ===== */
 .auth-gate {
   position: fixed; inset: 0; z-index: 60;
   background: rgba(7, 10, 25, 0.92);
@@ -390,7 +392,7 @@ a { color: var(--accent-hi); }
 .gate-note { margin: 14px 0 0; font-size: 0.82rem; }
 .gate-note.gate-error { color: #ff6b9d; font-weight: 600; }
 
-/* Botão "Entrar com Google" */
+/* "Sign in with Google" button */
 .btn-google {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   width: 100%;
@@ -416,9 +418,9 @@ a { color: var(--accent-hi); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 560px) {
-  /* Linha 1: ícone + utilizador + Sair. Linha 2: separadores.
-     A ordem do DOM é marca → separadores → autenticação, por isso é preciso
-     reordenar para a autenticação subir para junto do ícone. */
+  /* Row 1: icon + user + Log out. Row 2: tabs.
+     The DOM order is brand → tabs → auth, so we need to
+     reorder so the auth moves up next to the icon. */
   .topbar-inner { gap: 10px; padding: 10px 14px; }
   .auth-area { order: 2; margin-left: auto; }
   .tabs { order: 3; width: 100%; margin-left: 0; flex: 0 0 auto; justify-content: flex-start; }
@@ -431,7 +433,7 @@ a { color: var(--accent-hi); }
   .set-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .set-name { font-size: 0.8rem; }
 
-  /* Barra de ferramentas da coleção — grelha compacta em bloco no telemóvel */
+  /* Collection toolbar — compact block grid on mobile */
   .collection-toolbar {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -441,18 +443,18 @@ a { color: var(--accent-hi); }
   .collection-toolbar .spacer { display: none; }
   .collection-toolbar input[type="search"],
   .collection-toolbar select { min-width: 0; }
-  /* Filtro de texto ocupa a linha toda */
+  /* Text filter takes the whole row */
   .collection-toolbar input[type="search"] { grid-column: 1 / -1; }
-  /* Ordenar + raridade lado a lado */
+  /* Sort + rarity side by side */
   #collection-sort,
   #collection-rarity { width: 100%; }
 
-  /* Barra de detalhe (voltar / filtros) também em bloco */
+  /* Detail bar (back / filters) also as a block */
   .edition-detail-bar { gap: 8px; }
   .edition-detail-bar .rarity-filter { width: 100%; }
 
-  /* Estatísticas do set ("Já tens" / "Cartas no set" / "Completa") numa só
-     linha — por omissão o minmax(150px) da .stats partia-as em duas. */
+  /* Set stats ("You have" / "Cards in set" / "Complete") on a single
+     row — by default the .stats minmax(150px) split them into two. */
   #collection-set-stats {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
@@ -464,7 +466,7 @@ a { color: var(--accent-hi); }
   }
   #collection-set-stats .stat-value { font-size: 1.05rem; margin-top: 2px; }
 
-  /* Botões das definições ocupam a largura toda no telemóvel */
+  /* Settings buttons take the full width on mobile */
   .settings-group { padding: 16px 14px; }
   .settings-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .settings-actions .btn { width: 100%; padding: 12px 10px; }

@@ -1,17 +1,17 @@
 /* ============================================================
-   Configuração do Firebase (obrigatória, grátis)
+   Firebase configuration (required, free)
    ------------------------------------------------------------
-   A coleção é guardada na base de dados Firestore (Firebase),
-   não no browser. Cria um projeto grátis em
-   https://console.firebase.google.com, adiciona uma "Web app"
-   e cola aqui o objeto de configuração (firebaseConfig).
+   The collection is stored in the Firestore database (Firebase),
+   not in the browser. Create a free project at
+   https://console.firebase.google.com, add a "Web app"
+   and paste the configuration object here (firebaseConfig).
 
-   Sem isto preenchido, a app pede para configurares a base de dados.
-   Ver README.md → secção "Base de dados (obrigatória)".
+   Without this filled in, the app asks you to configure the database.
+   See README.md → "Database (required)" section.
 
-   Nota: estes valores são públicos por design (vão no site). A
-   segurança dos dados vem das Firestore Security Rules
-   (ficheiro firestore.rules).
+   Note: these values are public by design (they ship in the site). Data
+   security comes from the Firestore Security Rules
+   (firestore.rules file).
    ============================================================ */
 window.FIREBASE_CONFIG = {
   apiKey: "AIzaSyB3ZoFZ87fjlq76N71tSvAX1a05OFAUnU0",
@@ -24,9 +24,9 @@ window.FIREBASE_CONFIG = {
 };
 
 /* ------------------------------------------------------------
-   App de um só dono: apenas esta conta Google pode entrar.
-   Qualquer outra conta é recusada (na app e nas Firestore Rules,
-   ver firestore.rules). Deixa vazio ("") para permitir qualquer
-   conta Google.
+   Single-owner app: only this Google account may sign in.
+   Any other account is rejected (in the app and in the Firestore Rules,
+   see firestore.rules). Leave empty ("") to allow any
+   Google account.
    ------------------------------------------------------------ */
 window.ALLOWED_EMAIL = "nunomcfrancisco@gmail.com";
