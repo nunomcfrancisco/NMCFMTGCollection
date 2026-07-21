@@ -226,7 +226,7 @@ a { color: var(--accent-hi); }
   padding: 2px 10px; font-weight: 700; font-size: 0.85rem;
 }
 .card-foil-badge {
-  position: absolute; bottom: 8px; right: 8px;
+  position: absolute; top: 8px; right: 8px;
   background: linear-gradient(120deg,var(--neon-magenta),var(--neon-cyan),var(--neon-lime));
   color:#05132a; border-radius: 999px; padding: 2px 9px; font-weight:700; font-size: 0.72rem;
 }
