@@ -1,11 +1,11 @@
 /* ============================================================
-   Camada de dados — a coleção vive na base de dados (Firebase)
+   Data layer — the collection lives in the database (Firebase)
    ------------------------------------------------------------
-   - Firestore é a FONTE DE VERDADE (uma "document" por carta em
+   - Firestore is the SOURCE OF TRUTH (one document per card in
      users/{uid}/cards/{cardId}).
-   - Cache offline + sincronização em tempo real são geridas pelo
-     próprio Firestore (persistentLocalCache + onSnapshot).
-   - Login com Google (obrigatório para usar a app).
+   - Offline cache + real-time sync are handled by Firestore
+     itself (persistentLocalCache + onSnapshot).
+   - Google login (required to use the app).
    ============================================================ */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -23,7 +23,7 @@ const configured =
   !String(cfg.apiKey).includes("YOUR_") &&
   !String(cfg.projectId).includes("YOUR_");
 
-// App de um só dono: só esta conta pode entrar (vazio = qualquer conta).
+// Single-owner app: only this account may sign in (empty = any account).
 const allowedEmail = String(window.ALLOWED_EMAIL || "").trim().toLowerCase();
 const isAllowed = (user) =>
   !allowedEmail ||
@@ -35,28 +35,28 @@ const gate = document.getElementById("auth-gate");
 let auth = null;
 let db = null;
 let currentUser = null;
-let unsubscribe = null; // cancela o onSnapshot ao sair
-let rejected = false;   // true quando entrou uma conta não autorizada
+let unsubscribe = null; // cancels the onSnapshot on sign-out
+let rejected = false;   // true when an unauthorized account signed in
 
 /* ============================================================
-   API pública usada pelo app.js
+   Public API used by app.js
    ============================================================ */
 window.Storage = {
   configured,
-  // Grava/atualiza uma carta na base de dados.
+  // Writes/updates a card in the database.
   upsert(id, entry) {
     if (!db || !currentUser) return;
     setDoc(doc(db, "users", currentUser.uid, "cards", id), entry)
-      .catch((e) => setSyncStatus("Falha ao guardar: " + e.message, true));
+      .catch((e) => setSyncStatus("Failed to save: " + e.message, true));
   },
-  // Remove uma carta da base de dados.
+  // Removes a card from the database.
   remove(id) {
     if (!db || !currentUser) return;
     deleteDoc(doc(db, "users", currentUser.uid, "cards", id))
-      .catch((e) => setSyncStatus("Falha ao remover: " + e.message, true));
+      .catch((e) => setSyncStatus("Failed to remove: " + e.message, true));
   },
-  // Grava/remove muitas cartas de uma vez, em lotes (para imports).
-  // upserts: [{ id, entry }] ; deletes: [id]. Devolve uma Promise.
+  // Writes/removes many cards at once, in batches (for imports).
+  // upserts: [{ id, entry }] ; deletes: [id]. Returns a Promise.
   async commitMany(upserts = [], deletes = []) {
     if (!db || !currentUser) return;
     const ref = (id) => doc(db, "users", currentUser.uid, "cards", id);
@@ -64,7 +64,7 @@ window.Storage = {
       ...upserts.map((u) => ["set", u.id, u.entry]),
       ...deletes.map((id) => ["del", id]),
     ];
-    const CHUNK = 400; // o Firestore permite até 500 operações por batch
+    const CHUNK = 400; // Firestore allows up to 500 operations per batch
     for (let i = 0; i < ops.length; i += CHUNK) {
       const batch = writeBatch(db);
       for (const [kind, id, entry] of ops.slice(i, i + CHUNK)) {
@@ -78,17 +78,17 @@ window.Storage = {
 };
 
 /* ============================================================
-   Arranque
+   Startup
    ============================================================ */
 if (!configured) {
   renderGateNeedsConfig();
-  authArea.innerHTML = `<span class="auth-note" title="Configura o config.js">⚠️ Sem base de dados</span>`;
+  authArea.innerHTML = `<span class="auth-note" title="Configure config.js">⚠️ No database</span>`;
 } else {
   const app = initializeApp(cfg);
   auth = getAuth(app);
-  // Firestore com cache offline persistente (funciona sem ligação).
+  // Firestore with persistent offline cache (works without a connection).
   db = initializeFirestore(app, {
-    ignoreUndefinedProperties: true, // slimCard pode ter card_faces: undefined
+    ignoreUndefinedProperties: true, // slimCard may have card_faces: undefined
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
   });
   init();
@@ -96,13 +96,13 @@ if (!configured) {
 
 function init() {
   onAuthStateChanged(auth, (user) => {
-    // Conta autenticada mas não autorizada → recusa e termina sessão.
+    // Authenticated but unauthorized account → reject and sign out.
     if (user && !isAllowed(user)) {
       rejected = true;
-      signOut(auth); // dispara novo onAuthStateChanged com user = null
+      signOut(auth); // triggers a new onAuthStateChanged with user = null
       return;
     }
-    if (user) rejected = false; // entrou a conta certa
+    if (user) rejected = false; // the right account signed in
 
     const wasSignedIn = !!currentUser;
     currentUser = user || null;
@@ -114,10 +114,10 @@ function init() {
 }
 
 /* ============================================================
-   Sessão iniciada → ouvir a coleção em tempo real
+   Session started → listen to the collection in real time
    ============================================================ */
 function start() {
-  setSyncStatus(`<span class="spinner"></span>A carregar da base de dados…`);
+  setSyncStatus(`<span class="spinner"></span>Loading from the database…`);
   const col = collection(db, "users", currentUser.uid, "cards");
   unsubscribe = onSnapshot(
     col,
@@ -127,34 +127,39 @@ function start() {
       window.applyRemoteCollection(data);
       setSyncStatus(
         snap.metadata.fromCache
-          ? "Offline — a mostrar a última cópia local."
-          : "Ligado à base de dados ✓"
+          ? "Offline — showing the last local copy."
+          : "Connected to the database ✓"
       );
     },
-    (err) => setSyncStatus("Erro na base de dados: " + err.message, true)
+    (err) => setSyncStatus("Database error: " + err.message, true)
   );
 }
 
 function stop() {
   if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-  window.applyRemoteCollection({}); // limpa a vista ao sair
+  window.applyRemoteCollection({}); // clears the view on sign-out
 }
 
 /* ============================================================
-   UI — canto superior + porta de entrada (login obrigatório)
+   UI — top corner + entry gate (login required)
    ============================================================ */
 function renderAuth() {
   if (!configured) return;
   if (currentUser) {
     authArea.innerHTML = `
-      <button class="btn btn-sm" id="logout-btn">Sair</button>`;
+      <button class="btn btn-sm btn-icon" id="logout-btn" aria-label="Log out" title="Log out">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 3.5v8" />
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6.6 6.9a7.5 7.5 0 1 0 10.8 0" />
+        </svg>
+      </button>`;
     document.getElementById("logout-btn").addEventListener("click", () => signOut(auth));
   } else {
-    authArea.innerHTML = `<span class="auth-note">🔒 Sessão terminada</span>`;
+    authArea.innerHTML = `<span class="auth-note">🔒 Signed out</span>`;
   }
 }
 
-// Mostra/esconde a porta de entrada consoante haja sessão iniciada.
+// Shows/hides the entry gate depending on whether a session is active.
 function updateGate() {
   if (!gate) return;
   if (currentUser) { gate.hidden = true; return; }
@@ -162,43 +167,43 @@ function updateGate() {
   gate.hidden = false;
   gate.innerHTML = `
     <div class="gate-box">
-      <h2><img class="brand-icon" src="icon.svg?v=28" alt="" /> MTG Collection</h2>
+      <h2><img class="brand-icon" src="icon.svg?v=29" alt="" /> MTG Collection</h2>
       <button class="btn btn-google" id="google-btn" type="button">
-        <span class="g-icon" aria-hidden="true">G</span> Entrar com Google
+        <span class="g-icon" aria-hidden="true">G</span> Sign in with Google
       </button>
       <p class="gate-note ${rejected ? "gate-error" : ""}" id="gate-note">${
         rejected
-          ? "Esta conta não tem acesso a esta coleção. Entra com a conta autorizada."
+          ? "This account doesn't have access to this collection. Sign in with the authorized account."
           : ""
       }</p>
     </div>`;
 
   document.getElementById("google-btn").addEventListener("click", () => {
     const note = document.getElementById("gate-note");
-    note.textContent = "A abrir a janela do Google…";
+    note.textContent = "Opening the Google window…";
     signInWithPopup(auth, new GoogleAuthProvider()).catch((e) => {
       note.textContent =
         e.code === "auth/popup-closed-by-user"
-          ? "Janela fechada antes de entrares. Tenta de novo."
-          : "Erro ao entrar: " + e.message;
+          ? "Window closed before you signed in. Try again."
+          : "Sign-in error: " + e.message;
     });
   });
 }
 
-// Sem Firebase configurado: explica como ativar a base de dados.
+// No Firebase configured: explain how to enable the database.
 function renderGateNeedsConfig() {
   if (!gate) return;
   gate.hidden = false;
   gate.innerHTML = `
     <div class="gate-box">
-      <h2><img class="brand-icon" src="icon.svg?v=28" alt="" /> MTG Collection</h2>
-      <p>Falta configurar a base de dados.</p>
+      <h2><img class="brand-icon" src="icon.svg?v=29" alt="" /> MTG Collection</h2>
+      <p>The database still needs to be configured.</p>
       <p class="gate-note">
-        Cria um projeto grátis na
+        Create a free project on the
         <a href="https://console.firebase.google.com" target="_blank" rel="noopener">Firebase Console</a>,
-        ativa o <strong>Firestore</strong> e o login <strong>Google</strong>, publica as
-        <code>firestore.rules</code> e cola a configuração da Web app no
-        ficheiro <code>config.js</code>. Vê o <strong>README</strong> para o passo a passo.
+        enable <strong>Firestore</strong> and <strong>Google</strong> login, publish the
+        <code>firestore.rules</code> and paste the Web app configuration into the
+        <code>config.js</code> file. See the <strong>README</strong> for the step-by-step.
       </p>
     </div>`;
 }

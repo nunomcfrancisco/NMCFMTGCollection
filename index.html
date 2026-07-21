@@ -1,37 +1,37 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>A Minha Coleção Magic</title>
-  <meta name="description" content="Gere a tua coleção de Magic: The Gathering — guardada numa base de dados na nuvem." />
+  <title>My Magic Collection</title>
+  <meta name="description" content="Manage your Magic: The Gathering collection — stored in a cloud database." />
   <link rel="preconnect" href="https://api.scryfall.com" />
   <link rel="preconnect" href="https://cards.scryfall.io" />
-  <!-- Firebase / Google (SDK, Firestore e login) — poupa o handshake inicial -->
+  <!-- Firebase / Google (SDK, Firestore and login) — saves the initial handshake -->
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" />
   <link rel="preconnect" href="https://accounts.google.com" />
-  <link rel="stylesheet" href="styles.css?v=28" />
-  <link rel="icon" type="image/svg+xml" href="icon.svg?v=28" />
-  <link rel="alternate icon" href="icon.png?v=28" />
-  <link rel="apple-touch-icon" href="icon.png?v=28" />
+  <link rel="stylesheet" href="styles.css?v=29" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=29" />
+  <link rel="alternate icon" href="icon.png?v=29" />
+  <link rel="apple-touch-icon" href="icon.png?v=29" />
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <!-- Ícone + título ao lado. -->
+      <!-- Icon + title side by side. -->
       <h1 class="brand">
-        <img class="brand-icon" src="icon.svg?v=28" alt="" />
+        <img class="brand-icon" src="icon.svg?v=29" alt="" />
         <span class="brand-title">MTG Collection</span>
       </h1>
       <nav class="tabs" role="tablist">
-        <button class="tab active" data-view="collection" role="tab">Coleção</button>
+        <button class="tab active" data-view="collection" role="tab">Collection</button>
         <button class="tab" data-view="editions" role="tab">Sets</button>
         <button class="tab tab-icon tab-pct" data-view="stats" role="tab"
-                aria-label="Estatísticas" title="Estatísticas">%</button>
+                aria-label="Statistics" title="Statistics">%</button>
         <button class="tab tab-icon" data-view="settings" role="tab"
-                aria-label="Definições" title="Definições">
+                aria-label="Settings" title="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path fill="currentColor" d="M19.14 12.94a7.6 7.6 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.62l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.12.55-1.62.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.86a.5.5 0 0 0 .12.62l2.03 1.58a7.6 7.6 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.62l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.39 1.04.7 1.62.94l.36 2.54c.04.24.25.42.5.42h3.84c.25 0 .46-.18.5-.42l.36-2.54c.58-.24 1.12-.55 1.62-.94l2.39.96c.22.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.62l-2.03-1.58ZM12 15.6A3.6 3.6 0 1 1 15.6 12 3.6 3.6 0 0 1 12 15.6Z"/>
           </svg>
@@ -42,29 +42,29 @@
   </header>
 
   <main class="container">
-    <!-- ===== VISTA: EDIÇÕES ===== -->
+    <!-- ===== VIEW: SETS ===== -->
     <section id="view-editions" class="view">
-      <!-- Seletor de edições (grelha de símbolos) -->
+      <!-- Set picker (grid of symbols) -->
       <div id="edition-picker">
-        <p class="hint">Escolhe um set pelo símbolo. A percentagem indica quantas cartas desse set já tens.</p>
-        <input id="edition-search" type="search" placeholder="Filtrar sets…" aria-label="Filtrar sets" />
+        <p class="hint">Pick a set by its symbol. The percentage shows how many cards of that set you already have.</p>
+        <input id="edition-search" type="search" placeholder="Filter sets…" aria-label="Filter sets" />
         <div id="edition-sets" class="set-grid"></div>
       </div>
 
-      <!-- Detalhe da edição escolhida -->
+      <!-- Detail of the chosen set -->
       <div id="edition-detail" hidden>
         <div class="edition-detail-bar">
-          <button id="edition-back" class="btn btn-sm" aria-label="Todos os sets" title="Todos os sets">◀</button>
+          <button id="edition-back" class="btn btn-sm" aria-label="All sets" title="All sets">◀</button>
           <label class="check-inline">
             <input type="checkbox" id="edition-missing-only" />
-            Mostrar apenas as que faltam
+            Show only missing cards
           </label>
-          <select id="edition-rarity" class="rarity-filter" aria-label="Filtrar por raridade">
-            <option value="">Todas as raridades</option>
-            <option value="common">Comum</option>
-            <option value="uncommon">Incomum</option>
-            <option value="rare">Rara</option>
-            <option value="mythic">Mítica</option>
+          <select id="edition-rarity" class="rarity-filter" aria-label="Filter by rarity">
+            <option value="">All rarities</option>
+            <option value="common">Common</option>
+            <option value="uncommon">Uncommon</option>
+            <option value="rare">Rare</option>
+            <option value="mythic">Mythic</option>
           </select>
         </div>
         <h2 id="edition-title" class="edition-title"></h2>
@@ -75,50 +75,50 @@
       <div id="edition-status" class="status" aria-live="polite"></div>
     </section>
 
-    <!-- ===== VISTA: COLEÇÃO ===== -->
+    <!-- ===== VIEW: COLLECTION ===== -->
     <section id="view-collection" class="view active">
       <div id="collection-status" class="status" aria-live="polite"></div>
 
-      <!-- Grelha de edições que tens na coleção (símbolo + nome + %) -->
+      <!-- Grid of sets you have in your collection (symbol + name + %) -->
       <div id="collection-picker">
-        <!-- Filtro próprio da vista de SETS (independente do das cartas) -->
+        <!-- Filter for the SETS view (independent of the cards filter) -->
         <div class="collection-toolbar">
           <input id="collection-set-filter" type="search"
-                 placeholder="Filtrar sets…" aria-label="Filtrar sets da coleção" />
+                 placeholder="Filter sets…" aria-label="Filter collection sets" />
         </div>
         <div id="collection-sets" class="set-grid"></div>
       </div>
 
-      <!-- Detalhe: as tuas cartas de uma edição -->
+      <!-- Detail: your cards from a set -->
       <div id="collection-detail" hidden>
-        <!-- Nome do set (com símbolo) no topo, antes dos filtros -->
+        <!-- Set name (with symbol) at the top, before the filters -->
         <h2 id="collection-set-title" class="edition-title set-detail-title"></h2>
         <div class="edition-detail-bar">
-          <button id="collection-back" class="btn btn-sm" aria-label="Todos os sets" title="Todos os sets">◀</button>
+          <button id="collection-back" class="btn btn-sm" aria-label="All sets" title="All sets">◀</button>
           <label class="check-inline">
             <input type="checkbox" id="collection-show-missing" />
-            Mostrar cartas em falta
+            Show missing cards
           </label>
         </div>
-        <!-- Filtros próprios da vista de CARTAS (independentes do filtro de sets) -->
+        <!-- Filters for the CARDS view (independent of the sets filter) -->
         <div class="collection-toolbar">
           <input id="collection-card-filter" type="search"
-                 placeholder="Filtrar cartas…" aria-label="Filtrar cartas do set" />
-          <select id="collection-sort" aria-label="Ordenar">
-            <option value="name">Nome (A→Z)</option>
-            <option value="name-desc">Nome (Z→A)</option>
-            <option value="value-desc">Valor (maior)</option>
-            <option value="value">Valor (menor)</option>
-            <option value="number" selected>Nº do set (1→∞)</option>
-            <option value="number-desc">Nº do set (∞→1)</option>
-            <option value="recent">Adicionadas recentemente</option>
+                 placeholder="Filter cards…" aria-label="Filter set cards" />
+          <select id="collection-sort" aria-label="Sort">
+            <option value="name">Name (A→Z)</option>
+            <option value="name-desc">Name (Z→A)</option>
+            <option value="value-desc">Value (highest)</option>
+            <option value="value">Value (lowest)</option>
+            <option value="number" selected>Set number (1→∞)</option>
+            <option value="number-desc">Set number (∞→1)</option>
+            <option value="recent">Recently added</option>
           </select>
-          <select id="collection-rarity" aria-label="Filtrar por raridade">
-            <option value="">Todas as raridades</option>
-            <option value="common">Comum</option>
-            <option value="uncommon">Incomum</option>
-            <option value="rare">Rara</option>
-            <option value="mythic">Mítica</option>
+          <select id="collection-rarity" aria-label="Filter by rarity">
+            <option value="">All rarities</option>
+            <option value="common">Common</option>
+            <option value="uncommon">Uncommon</option>
+            <option value="rare">Rare</option>
+            <option value="mythic">Mythic</option>
           </select>
         </div>
         <div id="collection-set-stats" class="stats"></div>
@@ -126,43 +126,43 @@
       </div>
     </section>
 
-    <!-- ===== VISTA: ESTATÍSTICAS ===== -->
+    <!-- ===== VIEW: STATISTICS ===== -->
     <section id="view-stats" class="view">
-      <h2 class="edition-title">Estatísticas</h2>
+      <h2 class="edition-title">Statistics</h2>
 
       <div id="stats-summary" class="stats"></div>
 
       <div class="settings-group">
-        <h3 class="settings-title">Cartas por raridade</h3>
+        <h3 class="settings-title">Cards by rarity</h3>
         <div id="rarity-chart" class="rarity-chart"></div>
       </div>
     </section>
 
-    <!-- ===== VISTA: DEFINIÇÕES ===== -->
+    <!-- ===== VIEW: SETTINGS ===== -->
     <section id="view-settings" class="view">
-      <h2 class="edition-title">Definições</h2>
+      <h2 class="edition-title">Settings</h2>
 
       <div class="settings-group">
-        <h3 class="settings-title">Backup e migração</h3>
+        <h3 class="settings-title">Backup and migration</h3>
         <p class="hint">
-          Guarda a coleção num ficheiro JSON, ou traz cartas de outra ferramenta.
-          A coleção vive na base de dados; o backup é uma cópia extra.
+          Save your collection to a JSON file, or bring in cards from another tool.
+          The collection lives in the database; the backup is an extra copy.
         </p>
         <div class="settings-actions">
-          <button id="export-btn" class="btn">Exportar</button>
-          <button id="import-btn" class="btn">Importar JSON</button>
-          <button id="import-csv-btn" class="btn">Importar CSV (Moxfield)</button>
+          <button id="export-btn" class="btn">Export</button>
+          <button id="import-btn" class="btn">Import JSON</button>
+          <button id="import-csv-btn" class="btn">Import CSV (Moxfield)</button>
         </div>
       </div>
 
       <div class="settings-group settings-danger">
-        <h3 class="settings-title">Zona perigosa</h3>
+        <h3 class="settings-title">Danger zone</h3>
         <p class="hint">
-          Apagar remove todas as cartas da base de dados e não pode ser desfeito.
-          Exporta primeiro se quiseres um backup.
+          Deleting removes every card from the database and cannot be undone.
+          Export first if you want a backup.
         </p>
         <div class="settings-actions">
-          <button id="clear-btn" class="btn btn-danger">Apagar tudo</button>
+          <button id="clear-btn" class="btn btn-danger">Delete everything</button>
         </div>
       </div>
 
@@ -173,23 +173,23 @@
     </section>
   </main>
 
-  <!-- Overlay de imagem grande -->
+  <!-- Large image overlay -->
   <div id="preview" class="preview" hidden>
-    <img id="preview-img" alt="Pré-visualização da carta" />
+    <img id="preview-img" alt="Card preview" />
   </div>
 
-  <!-- Porta de entrada: login obrigatório (a coleção vive na base de dados) -->
+  <!-- Entry gate: login required (the collection lives in the database) -->
   <div id="auth-gate" class="auth-gate" hidden></div>
 
   <footer class="footer">
     <p>
-      Dados e imagens via <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.
-      A coleção fica guardada numa base de dados na nuvem — usa <strong>Exportar</strong> para um backup extra.
+      Data and images via <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>.
+      The collection is stored in a cloud database — use <strong>Export</strong> for an extra backup.
     </p>
   </footer>
 
-  <script src="config.js?v=28"></script>
-  <script src="app.js?v=28"></script>
-  <script src="auth.js?v=28" type="module"></script>
+  <script src="config.js?v=29"></script>
+  <script src="app.js?v=29"></script>
+  <script src="auth.js?v=29" type="module"></script>
 </body>
 </html>

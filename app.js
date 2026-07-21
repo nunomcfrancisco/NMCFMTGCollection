@@ -1,36 +1,36 @@
 /* ============================================================
-   A Minha Coleção Magic
-   - Dados/imagens: API pública da Scryfall (sem chave)
-   - Persistência: base de dados Firestore (Firebase) — ver auth.js.
-     A cache offline é gerida pelo próprio Firestore.
+   My Magic Collection
+   - Data/images: Scryfall public API (no key)
+   - Persistence: Firestore database (Firebase) — see auth.js.
+     The offline cache is handled by Firestore itself.
    ============================================================ */
 
 const SCRYFALL = "https://api.scryfall.com";
 
-/* ---------- Estado ---------- */
+/* ---------- State ---------- */
 // collection = { [cardId]: { qty, foil, card } }
-// Arranca vazia; a camada de dados (auth.js) carrega-a da base de dados
-// assim que houver sessão iniciada.
+// Starts empty; the data layer (auth.js) loads it from the database
+// as soon as a session is active.
 let collection = {};
 
-// Enquanto está true, os snapshots do Firestore não mexem na coleção em
-// memória — durante um import é ela a fonte de verdade (senão os snapshots
-// parciais de cada lote apagariam cartas ainda por gravar).
+// While true, Firestore snapshots don't touch the in-memory collection
+// — during an import it is the source of truth (otherwise the partial
+// snapshots of each batch would delete cards not yet written).
 let importing = false;
 
-/* ---------- Utilitários ---------- */
+/* ---------- Utilities ---------- */
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
-/* ---------- Persistência (delegada à camada de dados / auth.js) ---------- */
-// Grava na base de dados: se a carta existe em memória faz upsert, senão remove.
+/* ---------- Persistence (delegated to the data layer / auth.js) ---------- */
+// Writes to the database: if the card exists in memory, upsert; otherwise remove.
 function persist(id) {
   if (!window.Storage) return;
   if (collection[id]) window.Storage.upsert(id, collection[id]);
   else window.Storage.remove(id);
 }
-// Grava muitas cartas de uma vez (em lote) — evita rajadas de escrituras
-// individuais que rebentam o SDK do Firestore em imports grandes.
+// Writes many cards at once (in a batch) — avoids bursts of individual
+// writes that break the Firestore SDK on large imports.
 function persistMany(ids) {
   if (!window.Storage) return Promise.resolve();
   if (window.Storage.commitMany) {
@@ -45,40 +45,40 @@ function persistMany(ids) {
   return Promise.resolve();
 }
 
-/* ---------- Ponte com a camada de dados (auth.js) ---------- */
-// Devolve a coleção atual (usada ao gravar na base de dados).
+/* ---------- Bridge with the data layer (auth.js) ---------- */
+// Returns the current collection (used when writing to the database).
 window.getCollection = () => collection;
 
-// Substitui a coleção com os dados vindos da base de dados (não re-grava).
+// Replaces the collection with the data from the database (does not re-write).
 window.applyRemoteCollection = (data) => {
-  if (importing) return; // durante um import ignora snapshots (ver 'importing')
+  if (importing) return; // during an import, ignore snapshots (see 'importing')
   collection = data && typeof data === "object" && !Array.isArray(data) ? data : {};
-  // Aplica a regra de 1 cópia máxima.
+  // Enforce the max-1-copy rule.
   for (const entry of Object.values(collection)) {
     if (entry && entry.qty > 1) entry.qty = 1;
   }
   renderCollection();
-  // Atualiza a vista de edições (grelha de sets e/ou detalhe da edição aberta).
+  // Update the sets view (set grid and/or the open set detail).
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
   if (editionsState.cards.length && !$("#edition-detail").hidden) renderEdition();
 };
 
-// Formatadores criados uma vez — construir um Intl.NumberFormat é caro e
-// estes são usados por cada carta desenhada.
-const eurFmt = new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" });
-const numFmt = new Intl.NumberFormat("pt-PT");
+// Formatters created once — building an Intl.NumberFormat is expensive and
+// these are used for every card drawn.
+const eurFmt = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" });
+const numFmt = new Intl.NumberFormat("en-GB");
 
-// Coladores reutilizados: String.localeCompare constrói um por chamada, o que
-// pesa dentro de um sort() com milhares de comparações.
-const nameCollator = new Intl.Collator("pt-PT");
-// Ordena números de colecionador de forma natural ("2" < "10" < "12a").
+// Reused collators: String.localeCompare builds one per call, which is
+// costly inside a sort() with thousands of comparisons.
+const nameCollator = new Intl.Collator("en");
+// Sorts collector numbers naturally ("2" < "10" < "12a").
 const numberCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function eur(value) {
   return eurFmt.format(value || 0);
 }
 
-// Adia execuções seguidas (usado nas caixas de pesquisa, que disparam a cada tecla).
+// Defers repeated calls (used in the search boxes, which fire on every keystroke).
 function debounce(fn, ms = 150) {
   let timer;
   return function (...args) {
@@ -87,7 +87,7 @@ function debounce(fn, ms = 150) {
   };
 }
 
-// Preço da carta em EUR (Scryfall dá EUR e USD). Usa EUR; cai para USD*0.92.
+// Card price in EUR (Scryfall gives EUR and USD). Uses EUR; falls back to USD*0.92.
 function cardPrice(card, foil) {
   const p = card.prices || {};
   if (foil) {
@@ -100,7 +100,7 @@ function cardPrice(card, foil) {
 }
 
 function cardImage(card, size = "normal") {
-  // Cartas de duas faces têm as imagens em card_faces
+  // Double-faced cards have their images in card_faces
   if (card.image_uris) return card.image_uris[size] || card.image_uris.normal;
   if (card.card_faces && card.card_faces[0].image_uris) {
     return card.card_faces[0].image_uris[size] || card.card_faces[0].image_uris.normal;
@@ -108,8 +108,8 @@ function cardImage(card, size = "normal") {
   return "";
 }
 
-// Mostra um loader (spinner) enquanto a imagem da carta carrega e faz
-// fade-in quando fica pronta. Trata o caso de a imagem já estar em cache.
+// Shows a loader (spinner) while the card image loads and fades it in
+// when ready. Handles the case where the image is already cached.
 function wireCardImageLoader(imgWrap) {
   if (!imgWrap) return;
   const img = imgWrap.querySelector("img");
@@ -117,23 +117,23 @@ function wireCardImageLoader(imgWrap) {
   const done = () => imgWrap.classList.add("img-loaded");
   if (img.complete && img.naturalWidth > 0) { done(); return; }
   img.addEventListener("load", done, { once: true });
-  img.addEventListener("error", done, { once: true }); // não deixa o spinner infinito
+  img.addEventListener("error", done, { once: true }); // avoids an infinite spinner
 }
 
-/* ---------- Escape HTML (segurança) ---------- */
+/* ---------- Escape HTML (security) ---------- */
 function esc(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));
 }
 
-// Raridade abreviada à primeira letra: C(omum), U (incomum), R(ara), M(ítica).
+// Rarity abbreviated to its first letter: C(ommon), U(ncommon), R(are), M(ythic).
 function rarityLetter(rarity) {
   return ({ common: "C", uncommon: "U", rare: "R", mythic: "M" }[rarity] ||
     (rarity ? rarity[0].toUpperCase() : ""));
 }
 
-// Letra da raridade com cor por raridade (C branco, U cinza, R amarelo, M laranja).
+// Rarity letter colored by rarity (C white, U gray, R yellow, M orange).
 function rarityLetterHtml(rarity) {
   const letter = rarityLetter(rarity);
   if (!letter) return "";
@@ -142,7 +142,7 @@ function rarityLetterHtml(rarity) {
 }
 
 /* ============================================================
-   NAVEGAÇÃO ENTRE VISTAS
+   NAVIGATION BETWEEN VIEWS
    ============================================================ */
 $$(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -157,16 +157,16 @@ $$(".tab").forEach((tab) => {
   });
 });
 
-/* Botão que alterna entre adicionar/remover a carta (máx. 1 cópia).
-   Usado nas Edições. Devolve uma função que refaz o estado visual.
-   `afterToggle` corre depois de cada alteração de posse. */
+/* Button that toggles adding/removing the card (max. 1 copy).
+   Used in Sets. Returns a function that rebuilds the visual state.
+   `afterToggle` runs after each ownership change. */
 function makeOwnToggle(card, cardEl, actionsEl, afterToggle) {
   function sync() {
     const owned = !!collection[card.id];
     cardEl.classList.toggle("not-owned", !owned);
     actionsEl.innerHTML = owned
-      ? `<button class="btn btn-sm remove-btn">✓ Na coleção · Remover</button>`
-      : `<button class="btn btn-primary btn-sm add-btn">+ Adicionar</button>`;
+      ? `<button class="btn btn-sm remove-btn">✓ In collection · Remove</button>`
+      : `<button class="btn btn-primary btn-sm add-btn">+ Add</button>`;
     actionsEl.querySelector("button").addEventListener("click", () => {
       if (collection[card.id]) removeFromCollection(card.id);
       else addToCollection(card);
@@ -178,11 +178,11 @@ function makeOwnToggle(card, cardEl, actionsEl, afterToggle) {
 }
 
 /* ============================================================
-   COLEÇÃO — adicionar / remover
+   COLLECTION — add / remove
    ============================================================ */
 function addToCollection(card, foil = false, defer = false) {
   const id = card.id;
-  // No máximo 1 cópia: se já existe, apenas garante qty = 1 (e atualiza o foil).
+  // At most 1 copy: if it already exists, just ensure qty = 1 (and update foil).
   if (collection[id]) {
     collection[id].qty = 1;
     collection[id].foil = foil || collection[id].foil;
@@ -194,7 +194,7 @@ function addToCollection(card, foil = false, defer = false) {
       card: slimCard(card),
     };
   }
-  // defer = deixa a gravação para um lote posterior (usado nos imports).
+  // defer = leave the write for a later batch (used in imports).
   if (!defer) persist(id);
 }
 
@@ -204,7 +204,7 @@ function removeFromCollection(id) {
   persist(id);
 }
 
-// Guarda apenas os campos necessários para não encher a base de dados
+// Keeps only the necessary fields so as not to bloat the database
 function slimCard(card) {
   return {
     id: card.id,
@@ -229,16 +229,16 @@ function toggleFoil(id) {
 }
 
 /* ============================================================
-   VISTA "%" — estatísticas gerais + gráfico por raridade
+   "%" VIEW — general statistics + chart by rarity
    ============================================================ */
-// Raridades pela ordem em que aparecem no gráfico/legenda. As cores batem
-// certo com as letras de raridade nas cartas (.rarity-* no CSS).
+// Rarities in the order they appear in the chart/legend. The colors match
+// the rarity letters on the cards (.rarity-* in the CSS).
 const RARITY_CHART = [
-  { key: "common", label: "Comum", color: "#e7ecff" },
-  { key: "uncommon", label: "Incomum", color: "#9aa0a6" },
-  { key: "rare", label: "Rara", color: "#f2c94c" },
-  { key: "mythic", label: "Mítica", color: "#ff8c42" },
-  { key: "other", label: "Outra", color: "#7a83b8" },
+  { key: "common", label: "Common", color: "#e7ecff" },
+  { key: "uncommon", label: "Uncommon", color: "#9aa0a6" },
+  { key: "rare", label: "Rare", color: "#f2c94c" },
+  { key: "mythic", label: "Mythic", color: "#ff8c42" },
+  { key: "other", label: "Other", color: "#7a83b8" },
 ];
 
 function renderStats() {
@@ -247,20 +247,20 @@ function renderStats() {
   const totalValue = entries.reduce((s, e) => s + cardPrice(e.card, e.foil), 0);
 
   $("#stats-summary").innerHTML = `
-    <div class="stat"><div class="stat-label">Cartas</div><div class="stat-value">${numFmt.format(unique)}</div></div>
-    <div class="stat"><div class="stat-label">Valor estimado</div><div class="stat-value">${eur(totalValue)}</div></div>`;
+    <div class="stat"><div class="stat-label">Cards</div><div class="stat-value">${numFmt.format(unique)}</div></div>
+    <div class="stat"><div class="stat-label">Estimated value</div><div class="stat-value">${eur(totalValue)}</div></div>`;
 
   renderRarityChart(entries);
 }
 
-// Gráfico pie (donut) com a quantidade de cartas por raridade.
+// Pie (donut) chart with the number of cards by rarity.
 function renderRarityChart(entries) {
   const el = $("#rarity-chart");
   if (!el) return;
 
   const total = entries.length;
   if (total === 0) {
-    el.innerHTML = `<p class="hint" style="margin:0;">Ainda não tens cartas na coleção.</p>`;
+    el.innerHTML = `<p class="hint" style="margin:0;">You don't have any cards in your collection yet.</p>`;
     return;
   }
 
@@ -271,10 +271,10 @@ function renderRarityChart(entries) {
     counts[r in counts ? r : "other"]++;
   }
 
-  // Só entram no gráfico as raridades com pelo menos uma carta.
+  // Only rarities with at least one card enter the chart.
   const segs = RARITY_CHART.filter((o) => counts[o.key] > 0);
 
-  // conic-gradient: um arco por raridade, proporcional à contagem.
+  // conic-gradient: one arc per rarity, proportional to the count.
   let acc = 0;
   const stops = segs.map((o) => {
     const start = (acc / total) * 360;
@@ -296,21 +296,21 @@ function renderRarityChart(entries) {
     <div class="rarity-pie" style="background: conic-gradient(${stops});">
       <div class="rarity-pie-center">
         <span class="rarity-pie-total">${numFmt.format(total)}</span>
-        <span class="rarity-pie-total-label">cartas</span>
+        <span class="rarity-pie-total-label">cards</span>
       </div>
     </div>
     <ul class="rarity-legend">${legend}</ul>`;
 }
 
 /* ============================================================
-   RENDER DA COLEÇÃO
+   COLLECTION RENDER
    ============================================================ */
-// Estado da vista Coleção: setCode = null → grelha de edições; senão → detalhe.
+// Collection view state: setCode = null → set grid; otherwise → detail.
 let collectionView = { setCode: null };
 
-// Os dois filtros de texto são independentes: um filtra a grelha de SETS, o outro
-// as CARTAS dentro de um set. Escrever num não afeta o outro.
-// Debounce: escrever redesenha a grelha toda; sem isto seria a cada tecla.
+// The two text filters are independent: one filters the SETS grid, the other
+// the CARDS within a set. Typing in one doesn't affect the other.
+// Debounce: typing redraws the whole grid; without this it would be per keystroke.
 $("#collection-set-filter").addEventListener("input", debounce(() => renderCollection(), 150));
 $("#collection-card-filter").addEventListener("input", debounce(() => renderCollection(), 150));
 $("#collection-sort").addEventListener("change", renderCollection);
@@ -325,7 +325,7 @@ function renderCollection() {
   const entries = Object.values(collection);
   const unique = entries.length;
 
-  // As estatísticas gerais (Cartas / Valor / gráfico) vivem na vista "%".
+  // The general statistics (Cards / Value / chart) live in the "%" view.
   renderStats();
 
   if (unique === 0) {
@@ -335,15 +335,15 @@ function renderCollection() {
     $("#collection-status").innerHTML = "";
     $("#collection-sets").innerHTML = `
       <div class="empty" style="grid-column: 1 / -1;">
-        <h3>A tua coleção está vazia</h3>
-        <p>Vai aos <strong>Sets</strong>, escolhe um set e marca as cartas que tens, ou usa <strong>Importar</strong>.</p>
+        <h3>Your collection is empty</h3>
+        <p>Go to <strong>Sets</strong>, pick a set and mark the cards you have, or use <strong>Import</strong>.</p>
       </div>`;
     return;
   }
 
-  // Se o set escolhido já não tem cartas (ex.: removeste a última), volta à grelha.
-  // Exceção: com "Mostrar cartas em falta" ativo continua a fazer sentido ver o set
-  // (podes voltar a adicionar cartas dali).
+  // If the chosen set no longer has cards (e.g. you removed the last one), go back to the grid.
+  // Exception: with "Show missing cards" active it still makes sense to view the set
+  // (you can add cards back from there).
   if (collectionView.setCode && !ownedInSet(collectionView.setCode) &&
       !$("#collection-show-missing").checked) {
     collectionView.setCode = null;
@@ -352,16 +352,16 @@ function renderCollection() {
   if (collectionView.setCode) renderCollectionDetail();
   else renderCollectionPicker();
 
-  // Carrega os símbolos/percentagens dos sets UMA vez e re-renderiza quando
-  // chegam. O guarda evita anexar vários .then (que causariam re-renders
-  // repetidos a limpar o status).
+  // Load the set symbols/percentages ONCE and re-render when they arrive.
+  // The guard avoids attaching several .then (which would cause repeated
+  // re-renders that clear the status).
   if (!setsByCode && !collectionView.loadingSets) {
     collectionView.loadingSets = true;
     ensureSets().then(renderCollection).catch(() => {});
   }
 }
 
-// Agrupa a coleção por código de set.
+// Groups the collection by set code.
 function collectionBySet() {
   const bySet = {};
   for (const e of Object.values(collection)) {
@@ -371,8 +371,8 @@ function collectionBySet() {
   return bySet;
 }
 
-// Compara números de colecionador ("1", "2", "10", "12a", "★123") de forma
-// natural (numérica quando possível). asc = crescente.
+// Compares collector numbers ("1", "2", "10", "12a", "★123") naturally
+// (numeric when possible). asc = ascending.
 function cmpCollector(a, b, asc = true) {
   const r = numberCollator.compare(String(a ?? ""), String(b ?? ""));
   return asc ? r : -r;
@@ -383,14 +383,14 @@ function setDisplayName(code, fallbackEntry) {
     (fallbackEntry && fallbackEntry.card.set_name) || code.toUpperCase();
 }
 
-// GRELHA de edições que tens na coleção (símbolo + nome + %), estilo Edições.
+// GRID of sets you have in your collection (symbol + name + %), Sets style.
 function renderCollectionPicker() {
   $("#collection-detail").hidden = true;
   $("#collection-picker").hidden = false;
 
   const bySet = collectionBySet();
   const filter = $("#collection-set-filter").value.trim().toLowerCase();
-  // Nome e data de cada set calculados UMA vez (o sort compara O(n log n) vezes).
+  // Name and date of each set computed ONCE (the sort compares O(n log n) times).
   const info = Object.create(null);
   for (const c of Object.keys(bySet)) {
     const name = setDisplayName(c, bySet[c][0]);
@@ -412,7 +412,7 @@ function renderCollectionPicker() {
 
   $("#collection-status").innerHTML = filter
     ? `${codes.length} set(s).`
-    : (setsByCode ? "" : `<span class="spinner"></span>A carregar sets…`);
+    : (setsByCode ? "" : `<span class="spinner"></span>Loading sets…`);
 
   const grid = $("#collection-sets");
   const frag = document.createDocumentFragment();
@@ -426,7 +426,7 @@ function renderCollectionPicker() {
     const cell = document.createElement("button");
     cell.className = "set-cell";
     cell.title = pct === null
-      ? `${name} — ${owned} carta(s)`
+      ? `${name} — ${owned} card(s)`
       : `${name} — ${owned}/${total} (${pct}%)`;
     cell.innerHTML = `
       <img class="set-symbol" loading="lazy" src="${esc(meta ? meta.icon_svg_uri || "" : "")}" alt="" />
@@ -434,9 +434,9 @@ function renderCollectionPicker() {
       <span class="set-pct">${pct === null ? owned : pct + "%"}</span>`;
     cell.addEventListener("click", () => {
       collectionView.setCode = code;
-      $("#collection-show-missing").checked = false; // default: só cartas colecionadas
-      // Entra no set sem filtros de carta herdados (senão a grelha podia abrir
-      // vazia por causa de uma pesquisa antiga). O filtro de sets fica intacto.
+      $("#collection-show-missing").checked = false; // default: only owned cards
+      // Enters the set without inherited card filters (otherwise the grid could
+      // open empty because of an old search). The sets filter stays intact.
       $("#collection-card-filter").value = "";
       $("#collection-rarity").value = "";
       renderCollection();
@@ -447,7 +447,7 @@ function renderCollectionPicker() {
   grid.appendChild(frag);
 }
 
-// DETALHE: as tuas cartas de uma edição escolhida.
+// DETAIL: your cards from a chosen set.
 function renderCollectionDetail() {
   $("#collection-picker").hidden = true;
   $("#collection-detail").hidden = false;
@@ -460,16 +460,16 @@ function renderCollectionDetail() {
   const total = meta ? meta.card_count : 0;
   const pct = total ? Math.round((owned / total) * 100) : null;
 
-  // Símbolo do set antes do nome (quando já temos os metadados carregados).
+  // Set symbol before the name (once the metadata is loaded).
   const icon = meta && meta.icon_svg_uri;
   $("#collection-set-title").innerHTML =
     (icon ? `<img class="set-symbol set-title-symbol" src="${esc(icon)}" alt="" />` : "") +
     `<span>${esc(name)}</span>`;
   $("#collection-set-stats").innerHTML =
-    `<div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${numFmt.format(owned)}</div></div>` +
+    `<div class="stat"><div class="stat-label">You have</div><div class="stat-value">${numFmt.format(owned)}</div></div>` +
     (total
-      ? `<div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${numFmt.format(total)}</div></div>
-         <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`
+      ? `<div class="stat"><div class="stat-label">Cards in set</div><div class="stat-value">${numFmt.format(total)}</div></div>
+         <div class="stat"><div class="stat-label">Complete</div><div class="stat-value">${pct}%</div></div>`
       : "");
 
   const filter = $("#collection-card-filter").value.trim().toLowerCase();
@@ -478,16 +478,16 @@ function renderCollectionDetail() {
   const grid = $("#collection-grid");
   const showMissing = $("#collection-show-missing").checked;
 
-  // Modo "mostrar cartas em falta": mostra TODAS as cartas do set (as que faltam
-  // aparecem a cinzento e com botão para adicionar). Precisa da lista completa da Scryfall.
+  // "Show missing cards" mode: shows ALL cards of the set (the missing ones
+  // appear grayed out with an add button). Needs the full list from Scryfall.
   if (showMissing) {
     if (!setCardsCache[code]) {
       grid.innerHTML = "";
-      setStatus("#collection-status", `<span class="spinner"></span>A carregar cartas do set…`);
+      setStatus("#collection-status", `<span class="spinner"></span>Loading set cards…`);
       fetchSetCards(code)
         .then(() => { if (collectionView.setCode === code) renderCollection(); })
         .catch((err) => {
-          setStatus("#collection-status", `Falha ao carregar cartas: ${esc(err.message)}`, true);
+          setStatus("#collection-status", `Failed to load cards: ${esc(err.message)}`, true);
           $("#collection-show-missing").checked = false;
           if (collectionView.setCode === code) renderCollection();
         });
@@ -497,8 +497,8 @@ function renderCollectionDetail() {
     let cards = setCardsCache[code].slice();
     if (filter) cards = cards.filter((c) => c.name.toLowerCase().includes(filter));
     if (rarity) cards = cards.filter((c) => c.rarity === rarity);
-    // Preço e data calculados UMA vez por carta (o sort chamaria isto a cada
-    // comparação, ou seja O(n log n) parseFloat por render).
+    // Price and date computed ONCE per card (the sort would call this on every
+    // comparison, i.e. O(n log n) parseFloat per render).
     const valOf = new Map(), addedOf = new Map();
     for (const c of cards) {
       const e = collection[c.id];
@@ -520,7 +520,7 @@ function renderCollectionDetail() {
     });
 
     const missing = cards.filter((c) => !collection[c.id]).length;
-    setStatus("#collection-status", `${cards.length} carta(s) · ${missing} em falta.`);
+    setStatus("#collection-status", `${cards.length} card(s) · ${missing} missing.`);
 
     const frag = document.createDocumentFragment();
     cards.forEach((c) => frag.appendChild(
@@ -531,10 +531,10 @@ function renderCollectionDetail() {
     return;
   }
 
-  // Default: só as cartas que tens (filtro + raridade + ordenação).
+  // Default: only the cards you have (filter + rarity + sorting).
   if (filter) entries = entries.filter((e) => e.card.name.toLowerCase().includes(filter));
   if (rarity) entries = entries.filter((e) => e.card.rarity === rarity);
-  // Preço calculado uma vez por entrada, não a cada comparação do sort.
+  // Price computed once per entry, not on every sort comparison.
   const priceOf = new Map();
   if (sort === "value" || sort === "value-desc") {
     for (const e of entries) priceOf.set(e, cardPrice(e.card, e.foil));
@@ -551,7 +551,7 @@ function renderCollectionDetail() {
     }
   });
 
-  $("#collection-status").innerHTML = filter ? `${entries.length} carta(s).` : "";
+  $("#collection-status").innerHTML = filter ? `${entries.length} card(s).` : "";
 
   const frag = document.createDocumentFragment();
   entries.forEach((entry) => frag.appendChild(collectionCardEl(entry)));
@@ -559,7 +559,7 @@ function renderCollectionDetail() {
   grid.appendChild(frag);
 }
 
-// Carta em falta na Coleção (não colecionada): a cinzento, com botão para adicionar.
+// Missing card in the Collection (not owned): grayed out, with an add button.
 function collectionMissingCardEl(card) {
   const el = document.createElement("div");
   el.className = "card not-owned";
@@ -570,7 +570,7 @@ function collectionMissingCardEl(card) {
       <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
-      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
+      <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
       <div class="card-actions"></div>
     </div>`;
@@ -600,11 +600,11 @@ function collectionCardEl(entry) {
       ${foil ? `<span class="card-foil-badge">FOIL</span>` : ""}
     </div>
     <div class="card-body">
-      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
+      <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
       <div class="card-price">${unit ? eur(unit) : "—"}</div>
       <div class="card-actions">
         <button class="btn btn-sm foil-btn">${foil ? "★ Foil" : "☆ Foil"}</button>
-        <button class="btn btn-sm remove-btn" style="margin-left:auto">🗑 Remover</button>
+        <button class="btn btn-sm remove-btn" style="margin-left:auto">🗑 Remove</button>
       </div>
     </div>`;
 
@@ -624,27 +624,27 @@ function collectionCardEl(entry) {
 }
 
 /* ============================================================
-   EDIÇÕES — escolher um set e ver todas as cartas
-   (as que não estão na coleção aparecem em grayscale)
+   SETS — pick a set and see all its cards
+   (those not in the collection appear in grayscale)
    ============================================================ */
 let editionsState = { setsLoaded: false, loading: false, sets: [], cards: [], setCode: "" };
 
-// Mapa código→set (todos os sets da Scryfall), partilhado por Edições e Coleção.
+// code→set map (all Scryfall sets), shared by Sets and Collection.
 let setsByCode = null;
 
-// Cache das cartas de cada set (por código), partilhada por Sets e Coleção —
-// evita voltar a puxar a lista completa da Scryfall ao alternar de vista.
+// Cache of each set's cards (by code), shared by Sets and Collection —
+// avoids re-fetching the full list from Scryfall when switching views.
 const setCardsCache = {};
 
-// Puxa TODAS as cartas de um set da Scryfall (percorrendo as páginas).
+// Fetches ALL cards of a set from Scryfall (paging through the results).
 async function fetchSetCards(code) {
   if (setCardsCache[code]) return setCardsCache[code];
   let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent(`set:${code} unique:prints`)}&order=set`;
   const all = [];
   while (url) {
     const res = await fetch(url);
-    if (res.status === 404) break; // set sem cartas pesquisáveis
-    if (!res.ok) throw new Error(`Erro ${res.status}`);
+    if (res.status === 404) break; // set with no searchable cards
+    if (!res.ok) throw new Error(`Error ${res.status}`);
     const data = await res.json();
     all.push(...data.data);
     url = data.has_more ? data.next_page : null;
@@ -653,9 +653,9 @@ async function fetchSetCards(code) {
   return all;
 }
 
-// Cache local da lista de sets (não muda quase nunca) — evita puxar ~1 MB a cada visita.
+// Local cache of the sets list (rarely changes) — avoids fetching ~1 MB each visit.
 const SETS_CACHE_KEY = "mtg-sets-cache-v2";
-const SETS_TTL = 24 * 60 * 60 * 1000; // 1 dia
+const SETS_TTL = 24 * 60 * 60 * 1000; // 1 day
 
 function readSetsCache(ignoreAge) {
   try {
@@ -668,18 +668,18 @@ function writeSetsCache(list) {
   try { localStorage.setItem(SETS_CACHE_KEY, JSON.stringify({ ts: Date.now(), list })); } catch {}
 }
 
-// Carrega a lista de sets uma única vez (partilhada entre vistas), usando cache local.
+// Loads the sets list only once (shared between views), using the local cache.
 async function ensureSets() {
   if (setsByCode) return setsByCode;
   if (!ensureSets._p) {
     ensureSets._p = (async () => {
-      let list = readSetsCache(false); // cache fresca (< 1 dia)?
+      let list = readSetsCache(false); // fresh cache (< 1 day)?
       if (!list) {
         try {
           const res = await fetch(`${SCRYFALL}/sets`);
-          if (!res.ok) throw new Error(`Erro ${res.status}`);
+          if (!res.ok) throw new Error(`Error ${res.status}`);
           const data = await res.json();
-          // Guarda só os campos usados, para a cache ser pequena.
+          // Keep only the used fields, so the cache stays small.
           list = (data.data || []).map((s) => ({
             code: s.code, name: s.name, icon_svg_uri: s.icon_svg_uri,
             card_count: s.card_count, released_at: s.released_at, digital: s.digital,
@@ -687,16 +687,16 @@ async function ensureSets() {
           }));
           writeSetsCache(list);
         } catch (err) {
-          list = readSetsCache(true); // sem ligação: usa cache mesmo que velha
+          list = readSetsCache(true); // offline: use the cache even if stale
           if (!list) throw err;
         }
       }
       const map = {};
       for (const s of list) map[s.code] = s;
       setsByCode = map;
-      // Alimenta também a grelha das Edições (só sets com cartas reais).
-      // Exclui "Art Series" (só arte) e sets de tokens (set_type "token") —
-      // nenhum são cartas jogáveis para a coleção.
+      // Also feeds the Sets grid (only sets with real cards).
+      // Excludes "Art Series" (art only) and token sets (set_type "token") —
+      // none of those are playable cards for the collection.
       editionsState.sets = list
         .filter((s) =>
           s.card_count > 0 && !s.digital &&
@@ -709,7 +709,7 @@ async function ensureSets() {
   return ensureSets._p;
 }
 
-// Nº de cartas na coleção pertencentes a um dado código de set.
+// Number of cards in the collection belonging to a given set code.
 function ownedInSet(code) {
   let n = 0;
   for (const e of Object.values(collection)) {
@@ -718,9 +718,9 @@ function ownedInSet(code) {
   return n;
 }
 
-// Contagem por código de set numa única passagem pela coleção. Usar isto quando
-// se precisa do total de MUITOS sets de seguida (ex.: a grelha de ~900 sets):
-// chamar ownedInSet() por set seria O(sets × coleção).
+// Count by set code in a single pass over the collection. Use this when the
+// total for MANY sets is needed in a row (e.g. the grid of ~900 sets):
+// calling ownedInSet() per set would be O(sets × collection).
 function ownedCountBySet() {
   const counts = Object.create(null);
   for (const e of Object.values(collection)) {
@@ -734,19 +734,19 @@ async function initEditions() {
   if (editionsState.setsLoaded) { renderEditionPicker(); return; }
   if (editionsState.loading) return;
   editionsState.loading = true;
-  setStatus("#edition-status", `<span class="spinner"></span>A carregar sets…`);
+  setStatus("#edition-status", `<span class="spinner"></span>Loading sets…`);
   try {
     await ensureSets();
     setStatus("#edition-status", "");
     renderEditionPicker();
   } catch (err) {
-    setStatus("#edition-status", `Falha ao carregar sets: ${esc(err.message)}`, true);
+    setStatus("#edition-status", `Failed to load sets: ${esc(err.message)}`, true);
   } finally {
     editionsState.loading = false;
   }
 }
 
-// Grelha de símbolos dos sets (4 por linha). Cada célula mostra símbolo, nome e % na coleção.
+// Grid of set symbols (4 per row). Each cell shows symbol, name and % in the collection.
 function renderEditionPicker() {
   const grid = $("#edition-sets");
   const filter = $("#edition-search").value.trim().toLowerCase();
@@ -789,7 +789,7 @@ $("#edition-back").addEventListener("click", () => {
   $("#edition-picker").hidden = false;
   editionsState.setCode = "";
   editionsState.cards = [];
-  renderEditionPicker(); // reflete cartas adicionadas/removidas nesta edição
+  renderEditionPicker(); // reflects cards added/removed in this set
 });
 $("#edition-missing-only").addEventListener("change", renderEdition);
 $("#edition-rarity").addEventListener("change", renderEdition);
@@ -802,17 +802,17 @@ async function loadEditionCards(code) {
   if (!code) return;
 
   editionsState.loading = true;
-  setStatus("#edition-status", `<span class="spinner"></span>A carregar cartas…`);
+  setStatus("#edition-status", `<span class="spinner"></span>Loading cards…`);
 
   try {
     const all = await fetchSetCards(code);
-    // Evita render de resultados antigos se o utilizador trocar de set entretanto.
+    // Avoids rendering stale results if the user switches set in the meantime.
     if (editionsState.setCode !== code) return;
     editionsState.cards = all;
     setStatus("#edition-status", "");
     renderEdition();
   } catch (err) {
-    setStatus("#edition-status", `Falha ao carregar cartas: ${esc(err.message)}`, true);
+    setStatus("#edition-status", `Failed to load cards: ${esc(err.message)}`, true);
   } finally {
     editionsState.loading = false;
   }
@@ -827,9 +827,9 @@ function renderEdition() {
   const total = cards.length;
   const pct = total ? Math.round((owned / total) * 100) : 0;
   $("#edition-stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Cartas no set</div><div class="stat-value">${numFmt.format(total)}</div></div>
-    <div class="stat"><div class="stat-label">Já tens</div><div class="stat-value">${numFmt.format(owned)}</div></div>
-    <div class="stat"><div class="stat-label">Completa</div><div class="stat-value">${pct}%</div></div>`;
+    <div class="stat"><div class="stat-label">Cards in set</div><div class="stat-value">${numFmt.format(total)}</div></div>
+    <div class="stat"><div class="stat-label">You have</div><div class="stat-value">${numFmt.format(owned)}</div></div>
+    <div class="stat"><div class="stat-label">Complete</div><div class="stat-value">${pct}%</div></div>`;
 
   const rarity = $("#edition-rarity").value;
   const missingOnly = $("#edition-missing-only").checked;
@@ -853,14 +853,14 @@ function editionCardEl(card) {
       <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
-      <div class="card-meta">Nº ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
+      <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
       <div class="card-actions"></div>
     </div>`;
 
   const actions = el.querySelector(".card-actions");
   makeOwnToggle(card, el, actions, () => {
-    // Se o filtro "só em falta" estiver ativo, refaz a lista; senão só as estatísticas.
+    // If the "missing only" filter is active, rebuild the list; otherwise just the stats.
     if ($("#edition-missing-only").checked) renderEdition();
     else refreshEditionStats();
   })();
@@ -889,11 +889,11 @@ function refreshEditionStats() {
 }
 
 /* ============================================================
-   EXPORTAR / IMPORTAR / APAGAR (vista Definições)
+   EXPORT / IMPORT / DELETE (Settings view)
    ------------------------------------------------------------
-   O estado destas ações vai para #settings-status, junto dos botões: se
-   fosse para #collection-status, o utilizador ficaria noutra vista sem ver
-   o progresso, e os re-renders da coleção apagariam a mensagem.
+   The status of these actions goes to #settings-status, next to the buttons:
+   if it went to #collection-status, the user would be on another view without
+   seeing the progress, and collection re-renders would clear the message.
    ============================================================ */
 const ACTION_STATUS = "#settings-status";
 
@@ -903,37 +903,37 @@ $("#export-btn").addEventListener("click", () => {
   const a = document.createElement("a");
   const date = new Date().toISOString().slice(0, 10);
   a.href = url;
-  a.download = `colecao-magic-${date}.json`;
+  a.download = `magic-collection-${date}.json`;
   a.click();
   URL.revokeObjectURL(url);
 });
 
-/* ---------- Apagar toda a coleção ---------- */
+/* ---------- Delete the whole collection ---------- */
 $("#clear-btn").addEventListener("click", async () => {
   const ids = Object.keys(collection);
   if (!ids.length) {
-    setStatus(ACTION_STATUS, "A coleção já está vazia.");
+    setStatus(ACTION_STATUS, "The collection is already empty.");
     return;
   }
   const ok = confirm(
-    `Apagar TODAS as ${ids.length} cartas da coleção?\n\n` +
-    `Isto remove-as da base de dados e não pode ser desfeito. ` +
-    `Se quiseres um backup, cancela e usa Exportar primeiro.`
+    `Delete ALL ${ids.length} cards from the collection?\n\n` +
+    `This removes them from the database and cannot be undone. ` +
+    `If you want a backup, cancel and use Export first.`
   );
   if (!ok) return;
 
-  setStatus(ACTION_STATUS, `<span class="spinner"></span>A apagar…`);
-  importing = true; // evita que snapshots parciais mexam na coleção
+  setStatus(ACTION_STATUS, `<span class="spinner"></span>Deleting…`);
+  importing = true; // prevents partial snapshots from touching the collection
   try {
     if (window.Storage && window.Storage.commitMany) {
-      await window.Storage.commitMany([], ids); // apaga em lotes
+      await window.Storage.commitMany([], ids); // deletes in batches
     }
     collection = {};
     collectionView.setCode = null;
     renderCollection();
-    setStatus(ACTION_STATUS, "Coleção apagada.");
+    setStatus(ACTION_STATUS, "Collection deleted.");
   } catch (err) {
-    setStatus(ACTION_STATUS, `Falha ao apagar: ${esc(err.message)} — recarrega a página.`, true);
+    setStatus(ACTION_STATUS, `Failed to delete: ${esc(err.message)} — reload the page.`, true);
   } finally {
     importing = false;
   }
@@ -947,15 +947,15 @@ $("#import-file").addEventListener("change", async (e) => {
   try {
     const text = await file.text();
     const data = JSON.parse(text);
-    if (typeof data !== "object" || Array.isArray(data)) throw new Error("Formato inválido");
+    if (typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid format");
 
     const merge = confirm(
-      "Importar coleção:\n\n" +
-      "OK = juntar à coleção atual\n" +
-      "Cancelar = substituir a coleção atual"
+      "Import collection:\n\n" +
+      "OK = merge into the current collection\n" +
+      "Cancel = replace the current collection"
     );
 
-    // Ids afetados (antes + depois) para gravar/apagar na base de dados.
+    // Affected ids (before + after) to write/delete in the database.
     const affected = new Set(Object.keys(collection));
 
     if (merge) {
@@ -965,27 +965,27 @@ $("#import-file").addEventListener("change", async (e) => {
     } else {
       collection = data;
     }
-    // Garante a regra de 1 cópia máxima.
+    // Enforce the max-1-copy rule.
     for (const entry of Object.values(collection)) {
       if (entry && entry.qty > 1) entry.qty = 1;
     }
     Object.keys(collection).forEach((id) => affected.add(id));
-    importing = true; // não deixar snapshots parciais mexerem na coleção
+    importing = true; // don't let partial snapshots touch the collection
     try {
       await persistMany([...affected]);
     } finally {
       importing = false;
     }
     renderCollection();
-    setStatus(ACTION_STATUS, "Coleção importada com sucesso.");
+    setStatus(ACTION_STATUS, "Collection imported successfully.");
   } catch (err) {
-    setStatus(ACTION_STATUS, `Falha ao importar: ${esc(err.message)}`, true);
+    setStatus(ACTION_STATUS, `Failed to import: ${esc(err.message)}`, true);
   } finally {
     e.target.value = "";
   }
 });
 
-/* ---------- Importar CSV do Moxfield ---------- */
+/* ---------- Import Moxfield CSV ---------- */
 $("#import-csv-btn").addEventListener("click", () => $("#import-csv-file").click());
 
 $("#import-csv-file").addEventListener("change", async (e) => {
@@ -995,13 +995,13 @@ $("#import-csv-file").addEventListener("change", async (e) => {
     const text = await file.text();
     await importMoxfieldCSV(text);
   } catch (err) {
-    setStatus(ACTION_STATUS, `Falha ao importar CSV: ${esc(err.message)}`, true);
+    setStatus(ACTION_STATUS, `Failed to import CSV: ${esc(err.message)}`, true);
   } finally {
     e.target.value = "";
   }
 });
 
-// Interpreta CSV respeitando aspas e vírgulas dentro de campos.
+// Parses CSV respecting quotes and commas inside fields.
 function parseCSV(text) {
   const rows = [];
   let row = [], field = "", inQuotes = false;
@@ -1028,7 +1028,7 @@ function parseCSV(text) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Pedido à Scryfall com repetição (backoff) quando há rate limit (429) ou erro de servidor.
+// Scryfall request with retry (backoff) on rate limit (429) or server error.
 async function scryfallCollection(identifiers) {
   for (let attempt = 0; attempt < 6; attempt++) {
     const res = await fetch(`${SCRYFALL}/cards/collection`, {
@@ -1040,15 +1040,15 @@ async function scryfallCollection(identifiers) {
       await sleep(500 * Math.pow(2, attempt)); // 0.5s, 1s, 2s, 4s, 8s, 16s
       continue;
     }
-    if (!res.ok) throw new Error(`Erro ${res.status} na Scryfall`);
+    if (!res.ok) throw new Error(`Error ${res.status} from Scryfall`);
     return res.json();
   }
-  throw new Error("a Scryfall está a limitar os pedidos");
+  throw new Error("Scryfall is rate-limiting the requests");
 }
 
 async function importMoxfieldCSV(text) {
   const rows = parseCSV(text).filter((r) => r.some((c) => c.trim() !== ""));
-  if (rows.length < 2) throw new Error("CSV vazio ou sem cartas.");
+  if (rows.length < 2) throw new Error("Empty CSV or no cards.");
 
   const header = rows[0].map((h) => h.trim().toLowerCase());
   const col = (name) => header.indexOf(name);
@@ -1057,11 +1057,11 @@ async function importMoxfieldCSV(text) {
   const iFoil = col("foil");
   const iProxy = col("proxy");
   if (iEdition === -1 || iNumber === -1) {
-    throw new Error("Não parece um CSV do Moxfield (faltam colunas Edition / Collector Number).");
+    throw new Error("This doesn't look like a Moxfield CSV (missing Edition / Collector Number columns).");
   }
 
-  // Constrói identificadores set+collector_number e memoriza o foil de cada um.
-  // Ignora cartas marcadas como Proxy (playtest/proxies usadas para jogar).
+  // Builds set+collector_number identifiers and remembers each one's foil.
+  // Ignores cards marked as Proxy (playtest/proxies used for playing).
   const items = [];
   const foilByKey = {};
   let skippedProxy = 0;
@@ -1077,15 +1077,15 @@ async function importMoxfieldCSV(text) {
   if (!items.length) {
     throw new Error(
       skippedProxy
-        ? `Nenhuma carta válida — as ${skippedProxy} cartas do CSV são proxies (playtest).`
-        : "Nenhuma carta válida encontrada no CSV."
+        ? `No valid cards — the ${skippedProxy} cards in the CSV are proxies (playtest).`
+        : "No valid card found in the CSV."
     );
   }
 
   let imported = 0, notFound = 0, aborted = null;
-  const buffer = []; // {id, entry} ainda por gravar na base de dados
+  const buffer = []; // {id, entry} not yet written to the database
 
-  // Grava o buffer em lotes de 400 (só remove do buffer após gravar com sucesso).
+  // Writes the buffer in batches of 400 (only removes from the buffer after a successful write).
   async function flush(force) {
     while (buffer.length >= (force ? 1 : 400)) {
       const chunk = buffer.slice(0, 400);
@@ -1094,12 +1094,12 @@ async function importMoxfieldCSV(text) {
     }
   }
 
-  importing = true; // a partir daqui, os snapshots não mexem na coleção
+  importing = true; // from here on, snapshots don't touch the collection
   try {
-    for (let i = 0; i < items.length; i += 75) { // 75 = limite da Scryfall por pedido
+    for (let i = 0; i < items.length; i += 75) { // 75 = Scryfall limit per request
       const batch = items.slice(i, i + 75);
       setStatus(ACTION_STATUS,
-        `<span class="spinner"></span>A importar do Moxfield… ${Math.min(i + 75, items.length)}/${items.length} (guardadas ${imported - buffer.length})`);
+        `<span class="spinner"></span>Importing from Moxfield… ${Math.min(i + 75, items.length)}/${items.length} (saved ${imported - buffer.length})`);
       let data;
       try {
         data = await scryfallCollection(batch);
@@ -1107,29 +1107,29 @@ async function importMoxfieldCSV(text) {
 
       for (const card of (data.data || [])) {
         const foil = foilByKey[`${card.set}|${card.collector_number}`] || false;
-        addToCollection(card, foil, true); // defer: gravamos por lotes
+        addToCollection(card, foil, true); // defer: we write in batches
         buffer.push({ id: card.id, entry: collection[card.id] });
         imported++;
       }
       notFound += (data.not_found || []).length;
 
       try { await flush(false); }
-      catch (err) { aborted = "falha ao guardar (" + err.message + ")"; break; }
+      catch (err) { aborted = "failed to save (" + err.message + ")"; break; }
 
-      await sleep(90); // respeita o ritmo pedido pela Scryfall
+      await sleep(90); // respects the pace requested by Scryfall
     }
 
-    // Grava o que sobrou.
+    // Write whatever is left.
     if (!aborted) {
       try { await flush(true); }
-      catch (err) { aborted = "falha ao guardar (" + err.message + ")"; }
+      catch (err) { aborted = "failed to save (" + err.message + ")"; }
     }
   } finally {
     importing = false;
   }
 
-  // Garante que os símbolos/percentagens dos sets já carregaram (evita re-render
-  // que apague a mensagem final).
+  // Ensures the set symbols/percentages have loaded (avoids a re-render
+  // that would clear the final message).
   await ensureSets().catch(() => {});
   renderCollection();
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
@@ -1137,15 +1137,15 @@ async function importMoxfieldCSV(text) {
   const saved = imported - buffer.length;
   setStatus(ACTION_STATUS,
     (aborted
-      ? `Importação interrompida: ${aborted}. Guardadas ${saved} carta(s) — volta a correr o import para continuar.`
-      : `Importadas ${imported} carta(s) do Moxfield.`) +
-    (skippedProxy ? ` ${skippedProxy} proxy(s) ignorada(s).` : "") +
-    (notFound ? ` ${notFound} não encontradas na Scryfall.` : ""),
+      ? `Import interrupted: ${aborted}. Saved ${saved} card(s) — run the import again to continue.`
+      : `Imported ${imported} card(s) from Moxfield.`) +
+    (skippedProxy ? ` ${skippedProxy} proxy(ies) ignored.` : "") +
+    (notFound ? ` ${notFound} not found on Scryfall.` : ""),
     !!aborted);
 }
 
 /* ============================================================
-   PRÉ-VISUALIZAÇÃO
+   PREVIEW
    ============================================================ */
 function openPreview(src) {
   if (!src) return;
