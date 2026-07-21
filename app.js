@@ -108,6 +108,24 @@ function cardImage(card, size = "normal") {
   return "";
 }
 
+// Cardmarket link for a card. Prefers Scryfall's precise product URL
+// (purchase_uris.cardmarket); falls back to a Cardmarket search by name
+// for older collection entries that don't carry that field.
+function cardmarketUrl(card) {
+  if (card && card.purchase_uris && card.purchase_uris.cardmarket) {
+    return card.purchase_uris.cardmarket;
+  }
+  const name = (card && card.name) || "";
+  return "https://www.cardmarket.com/en/Magic/Products/Search?searchString=" +
+    encodeURIComponent(name);
+}
+
+// Opens the card's Cardmarket page in a new tab.
+function openCardmarket(card) {
+  const url = cardmarketUrl(card);
+  window.open(url, "_blank", "noopener");
+}
+
 // Shows a loader (spinner) while the card image loads and fades it in
 // when ready. Handles the case where the image is already cached.
 function wireCardImageLoader(imgWrap) {
@@ -214,6 +232,7 @@ function slimCard(card) {
     rarity: card.rarity,
     collector_number: card.collector_number,
     prices: card.prices,
+    purchase_uris: card.purchase_uris,
     image_uris: card.image_uris,
     card_faces: card.card_faces
       ? card.card_faces.map((f) => ({ image_uris: f.image_uris }))
@@ -582,7 +601,7 @@ function collectionMissingCardEl(card) {
   wireCardImageLoader(imgWrap);
   imgWrap.addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
-    openPreview(imgWrap.dataset.large);
+    openCardmarket(card);
   });
 
   return el;
@@ -617,7 +636,7 @@ function collectionCardEl(entry) {
   wireCardImageLoader(imgWrap);
   imgWrap.addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
-    openPreview(imgWrap.dataset.large);
+    openCardmarket(card);
   });
 
   return el;
@@ -869,7 +888,7 @@ function editionCardEl(card) {
   wireCardImageLoader(imgWrap);
   imgWrap.addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
-    openPreview(imgWrap.dataset.large);
+    openCardmarket(card);
   });
 
   return el;

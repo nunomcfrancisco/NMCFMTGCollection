@@ -193,7 +193,7 @@ a { color: var(--accent-hi); }
 /* ===== Card grid ===== */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-top: 8px;
 }
@@ -207,7 +207,7 @@ a { color: var(--accent-hi); }
   transition: transform 0.12s ease, border-color 0.12s ease;
 }
 .card:hover { transform: translateY(-3px); border-color: var(--accent); }
-.card-img-wrap { position: relative; aspect-ratio: 488 / 680; background: var(--bg-elev-2); cursor: zoom-in; }
+.card-img-wrap { position: relative; aspect-ratio: 488 / 680; background: var(--bg-elev-2); cursor: pointer; }
 .card-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.3s ease; }
 .card-img-wrap.img-loaded img { opacity: 1; }
 /* Spinner while the card image is still loading. */
@@ -429,7 +429,7 @@ a { color: var(--accent-hi); }
   .brand-icon { height: 26px; }
   .brand-title { font-size: 1rem; }
 
-  .card-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .card-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .set-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .set-name { font-size: 0.8rem; }
 
