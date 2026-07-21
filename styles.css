@@ -70,11 +70,11 @@ a { color: var(--accent-hi); }
   white-space: nowrap;
 }
 
-/* Sets/Collection pinned to the left; the icons (% + gear) go together
-   to the right. Only the first icon is pushed; the next one sits beside it. */
+/* Collection pinned to the left; S, % and gear go together to the right.
+   Only S is pushed; the icons that follow sit beside it. */
 .tabs { display: flex; gap: 6px; flex: 1; }
-.tabs .tab-icon { margin-left: auto; }
-.tabs .tab-icon + .tab-icon { margin-left: 0; }
+.tabs .tab[data-view="editions"] { margin-left: auto; }
+.tabs .tab-icon { margin-left: 0; }
 
 /* ===== Authentication area ===== */
 .auth-area { display: flex; align-items: center; gap: 8px; }
