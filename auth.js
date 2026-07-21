@@ -164,9 +164,7 @@ function updateGate() {
   gate.hidden = false;
   gate.innerHTML = `
     <div class="gate-box">
-      <h2>🃏 A Minha Coleção Magic</h2>
-      <p>A tua coleção fica guardada em segurança numa base de dados na nuvem.
-         Entra com a tua conta Google para a veres e editares.</p>
+      <h2><img class="brand-icon" src="icon.svg?v=26" alt="" /> MTG Collection</h2>
       <button class="btn btn-google" id="google-btn" type="button">
         <span class="g-icon" aria-hidden="true">G</span> Entrar com Google
       </button>
@@ -195,7 +193,7 @@ function renderGateNeedsConfig() {
   gate.hidden = false;
   gate.innerHTML = `
     <div class="gate-box">
-      <h2>🃏 A Minha Coleção Magic</h2>
+      <h2><img class="brand-icon" src="icon.svg?v=26" alt="" /> MTG Collection</h2>
       <p>Falta configurar a base de dados.</p>
       <p class="gate-note">
         Cria um projeto grátis na

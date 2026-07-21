@@ -359,7 +359,11 @@ a { color: var(--accent-hi); }
   max-width: 420px; width: 100%;
   text-align: center;
 }
-.gate-box h2 { margin: 0 0 12px; font-size: 1.3rem; }
+.gate-box h2 {
+  margin: 0 0 12px; font-size: 1.3rem;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.gate-box h2 .brand-icon { height: 28px; }
 .gate-box p { color: var(--text-dim); margin: 0 0 16px; }
 .gate-form { display: flex; flex-direction: column; gap: 10px; }
 .gate-form input {
