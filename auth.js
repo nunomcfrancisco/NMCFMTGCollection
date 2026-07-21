@@ -146,9 +146,7 @@ function stop() {
 function renderAuth() {
   if (!configured) return;
   if (currentUser) {
-    const label = currentUser.displayName || currentUser.email || "conta Google";
     authArea.innerHTML = `
-      <span class="auth-email" title="${escAttr(label)}">☁️ ${escAttr(label)}</span>
       <button class="btn btn-sm" id="logout-btn">Sair</button>`;
     document.getElementById("logout-btn").addEventListener("click", () => signOut(auth));
   } else {
@@ -211,10 +209,4 @@ function setSyncStatus(html, isError = false) {
   if (!el) return;
   el.innerHTML = html;
   el.classList.toggle("error", isError);
-}
-
-function escAttr(s) {
-  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[c]));
 }
