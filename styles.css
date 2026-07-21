@@ -73,7 +73,7 @@ a { color: var(--accent-hi); }
 /* Collection pinned to the left; S, % and gear go together to the right.
    Only S is pushed; the icons that follow sit beside it. */
 .tabs { display: flex; gap: 6px; flex: 1; }
-.tabs .tab[data-view="editions"] { margin-left: auto; font-size: 1.4rem; line-height: 1; padding-top: 4px; padding-bottom: 4px; }
+.tabs .tab[data-view="editions"] { margin-left: auto; }
 .tabs .tab-icon { margin-left: 0; }
 
 /* ===== Authentication area ===== */
