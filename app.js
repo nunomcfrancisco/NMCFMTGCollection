@@ -340,6 +340,7 @@ $("#collection-show-missing").addEventListener("change", renderCollection);
 $("#collection-back").addEventListener("click", () => {
   collectionView.setCode = null;
   renderCollection();
+  window.scrollTo(0, 0);
 });
 
 function renderCollection() {
@@ -472,6 +473,7 @@ function renderCollectionPicker() {
 function renderCollectionDetail() {
   $("#collection-picker").hidden = true;
   $("#collection-detail").hidden = false;
+  window.scrollTo(0, 0);
 
   const code = collectionView.setCode;
   const meta = setsByCode && setsByCode[code];
@@ -798,6 +800,7 @@ function renderEditionPicker() {
 function openEdition(set) {
   $("#edition-picker").hidden = true;
   $("#edition-detail").hidden = false;
+  window.scrollTo(0, 0);
   $("#edition-title").textContent = set.name;
   $("#edition-missing-only").checked = false;
   $("#edition-rarity").value = "";
@@ -811,6 +814,7 @@ $("#edition-back").addEventListener("click", () => {
   editionsState.setCode = "";
   editionsState.cards = [];
   renderEditionPicker(); // reflects cards added/removed in this set
+  window.scrollTo(0, 0);
 });
 $("#edition-missing-only").addEventListener("change", renderEdition);
 $("#edition-rarity").addEventListener("change", renderEdition);
