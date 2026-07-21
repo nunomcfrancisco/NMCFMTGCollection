@@ -108,16 +108,31 @@ function cardImage(card, size = "normal") {
   return "";
 }
 
+// Default filters passed to Cardmarket: English cards, sellers in Portugal.
+// (language=1 → English; sellerCountry=26 → Portugal, matching Cardmarket's IDs.)
+const CARDMARKET_FILTERS = { language: 1, sellerCountry: 26 };
+
+// Appends the default filters to a Cardmarket URL, respecting any existing query.
+function withCardmarketFilters(url) {
+  const sep = url.includes("?") ? "&" : "?";
+  const qs = Object.entries(CARDMARKET_FILTERS)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join("&");
+  return url + sep + qs;
+}
+
 // Cardmarket link for a card. Prefers Scryfall's precise product URL
 // (purchase_uris.cardmarket); falls back to a Cardmarket search by name
 // for older collection entries that don't carry that field.
 function cardmarketUrl(card) {
   if (card && card.purchase_uris && card.purchase_uris.cardmarket) {
-    return card.purchase_uris.cardmarket;
+    return withCardmarketFilters(card.purchase_uris.cardmarket);
   }
   const name = (card && card.name) || "";
-  return "https://www.cardmarket.com/en/Magic/Products/Search?searchString=" +
-    encodeURIComponent(name);
+  return withCardmarketFilters(
+    "https://www.cardmarket.com/en/Magic/Products/Search?searchString=" +
+    encodeURIComponent(name)
+  );
 }
 
 // Opens the card's Cardmarket page in a new tab.
