@@ -164,7 +164,7 @@ function updateGate() {
   gate.hidden = false;
   gate.innerHTML = `
     <div class="gate-box">
-      <h2><img class="brand-icon" src="icon.svg?v=26" alt="" /> MTG Collection</h2>
+      <h2><img class="brand-icon" src="icon.svg?v=27" alt="" /> MTG Collection</h2>
       <button class="btn btn-google" id="google-btn" type="button">
         <span class="g-icon" aria-hidden="true">G</span> Entrar com Google
       </button>
@@ -193,7 +193,7 @@ function renderGateNeedsConfig() {
   gate.hidden = false;
   gate.innerHTML = `
     <div class="gate-box">
-      <h2><img class="brand-icon" src="icon.svg?v=26" alt="" /> MTG Collection</h2>
+      <h2><img class="brand-icon" src="icon.svg?v=27" alt="" /> MTG Collection</h2>
       <p>Falta configurar a base de dados.</p>
       <p class="gate-note">
         Cria um projeto grátis na
