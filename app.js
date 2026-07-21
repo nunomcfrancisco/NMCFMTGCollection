@@ -172,6 +172,8 @@ $$(".tab").forEach((tab) => {
     if (view === "collection") { collectionView.setCode = null; renderCollection(); }
     if (view === "editions") initEditions();
     if (view === "stats") renderStats();
+    // Every new view starts at the top, not at the previous scroll position.
+    window.scrollTo(0, 0);
   });
 });
 
