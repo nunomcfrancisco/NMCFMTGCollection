@@ -108,6 +108,18 @@ function cardImage(card, size = "normal") {
   return "";
 }
 
+// Mostra um loader (spinner) enquanto a imagem da carta carrega e faz
+// fade-in quando fica pronta. Trata o caso de a imagem já estar em cache.
+function wireCardImageLoader(imgWrap) {
+  if (!imgWrap) return;
+  const img = imgWrap.querySelector("img");
+  if (!img) return;
+  const done = () => imgWrap.classList.add("img-loaded");
+  if (img.complete && img.naturalWidth > 0) { done(); return; }
+  img.addEventListener("load", done, { once: true });
+  img.addEventListener("error", done, { once: true }); // não deixa o spinner infinito
+}
+
 /* ---------- Escape HTML (segurança) ---------- */
 function esc(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({
@@ -567,6 +579,7 @@ function collectionMissingCardEl(card) {
   makeOwnToggle(card, el, actions, () => renderCollection())();
 
   const imgWrap = el.querySelector(".card-img-wrap");
+  wireCardImageLoader(imgWrap);
   imgWrap.addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
     openPreview(imgWrap.dataset.large);
@@ -601,6 +614,7 @@ function collectionCardEl(entry) {
     renderCollection();
   });
   const imgWrap = el.querySelector(".card-img-wrap");
+  wireCardImageLoader(imgWrap);
   imgWrap.addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
     openPreview(imgWrap.dataset.large);
@@ -852,6 +866,7 @@ function editionCardEl(card) {
   })();
 
   const imgWrap = el.querySelector(".card-img-wrap");
+  wireCardImageLoader(imgWrap);
   imgWrap.addEventListener("click", (e) => {
     if (e.target.closest(".card-actions")) return;
     openPreview(imgWrap.dataset.large);
