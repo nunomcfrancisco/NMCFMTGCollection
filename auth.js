@@ -171,7 +171,7 @@ function updateGate() {
       <p class="gate-note ${rejected ? "gate-error" : ""}" id="gate-note">${
         rejected
           ? "Esta conta não tem acesso a esta coleção. Entra com a conta autorizada."
-          : "Um clique — sem passwords."
+          : ""
       }</p>
     </div>`;
 
