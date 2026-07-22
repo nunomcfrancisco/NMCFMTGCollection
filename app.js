@@ -108,9 +108,11 @@ function cardImage(card, size = "normal") {
   return "";
 }
 
-// Default filters passed to Cardmarket: English cards, sellers in Portugal.
-// (language=1 → English; sellerCountry=26 → Portugal, matching Cardmarket's IDs.)
-const CARDMARKET_FILTERS = { language: 1, sellerCountry: 26 };
+// Default filters passed to Cardmarket: English cards, sellers in Portugal,
+// minimum card condition Near Mint.
+// (language=1 → English; sellerCountry=26 → Portugal; minCondition=2 → Near Mint,
+//  matching Cardmarket's IDs — 1=MT, 2=NM, 3=EX, 4=GD, 5=LP, 6=PL, 7=PO.)
+const CARDMARKET_FILTERS = { language: 1, sellerCountry: 26, minCondition: 2 };
 
 // Appends the default filters to a Cardmarket URL, respecting any existing query.
 function withCardmarketFilters(url) {
