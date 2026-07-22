@@ -378,8 +378,9 @@ function renderBarChart(el, buckets, total, emptyMsg) {
     return;
   }
 
-  // Only categories with at least one card enter the chart.
-  const segs = buckets.filter((b) => b.count > 0);
+  // Only categories with at least one card enter the chart, ordered from the
+  // largest count to the smallest.
+  const segs = buckets.filter((b) => b.count > 0).sort((a, b) => b.count - a.count);
   // Bars scale to the biggest category so the largest fills the track.
   const max = Math.max(...segs.map((b) => b.count));
 
