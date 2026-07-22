@@ -1104,15 +1104,30 @@ function refreshEditionStats() {
    ============================================================ */
 const ACTION_STATUS = "#settings-status";
 
+// While an import/export/delete runs, disable every action button so the user
+// can't start a second operation over the first.
+const ACTION_BUTTONS = ["#export-btn", "#import-btn", "#import-csv-btn", "#clear-btn"];
+function setActionsBusy(busy) {
+  for (const sel of ACTION_BUTTONS) {
+    const btn = $(sel);
+    if (btn) btn.disabled = busy;
+  }
+}
+
 $("#export-btn").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(collection, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const date = new Date().toISOString().slice(0, 10);
-  a.href = url;
-  a.download = `magic-collection-${date}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  setActionsBusy(true);
+  try {
+    const blob = new Blob([JSON.stringify(collection, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `magic-collection-${date}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } finally {
+    setActionsBusy(false);
+  }
 });
 
 /* ---------- Delete the whole collection ---------- */
@@ -1129,6 +1144,7 @@ $("#clear-btn").addEventListener("click", async () => {
   );
   if (!ok) return;
 
+  setActionsBusy(true);
   setStatus(ACTION_STATUS, `<span class="spinner"></span>Deleting…`);
   importing = true; // prevents partial snapshots from touching the collection
   try {
@@ -1143,6 +1159,7 @@ $("#clear-btn").addEventListener("click", async () => {
     setStatus(ACTION_STATUS, `Failed to delete: ${esc(err.message)} — reload the page.`, true);
   } finally {
     importing = false;
+    setActionsBusy(false);
   }
 });
 
@@ -1151,6 +1168,7 @@ $("#import-btn").addEventListener("click", () => $("#import-file").click());
 $("#import-file").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  setActionsBusy(true);
   try {
     const text = await file.text();
     const data = JSON.parse(text);
@@ -1189,6 +1207,7 @@ $("#import-file").addEventListener("change", async (e) => {
     setStatus(ACTION_STATUS, `Failed to import: ${esc(err.message)}`, true);
   } finally {
     e.target.value = "";
+    setActionsBusy(false);
   }
 });
 
@@ -1198,6 +1217,7 @@ $("#import-csv-btn").addEventListener("click", () => $("#import-csv-file").click
 $("#import-csv-file").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  setActionsBusy(true);
   try {
     const text = await file.text();
     await importMoxfieldCSV(text);
@@ -1205,6 +1225,7 @@ $("#import-csv-file").addEventListener("change", async (e) => {
     setStatus(ACTION_STATUS, `Failed to import CSV: ${esc(err.message)}`, true);
   } finally {
     e.target.value = "";
+    setActionsBusy(false);
   }
 });
 
@@ -1263,14 +1284,16 @@ async function importMoxfieldCSV(text) {
   const iNumber = col("collector number");
   const iFoil = col("foil");
   const iProxy = col("proxy");
+  const iName = col("name");
   if (iEdition === -1 || iNumber === -1) {
     throw new Error("This doesn't look like a Moxfield CSV (missing Edition / Collector Number columns).");
   }
 
-  // Builds set+collector_number identifiers and remembers each one's foil.
-  // Ignores cards marked as Proxy (playtest/proxies used for playing).
+  // Builds set+collector_number identifiers and remembers each one's foil and
+  // name (the name lets us report which cards Scryfall couldn't find).
   const items = [];
   const foilByKey = {};
+  const nameByKey = {};
   let skippedProxy = 0;
   for (const r of rows.slice(1)) {
     const set = (r[iEdition] || "").trim().toLowerCase();
@@ -1280,6 +1303,7 @@ async function importMoxfieldCSV(text) {
     const foil = iFoil !== -1 && /foil|etched/i.test((r[iFoil] || "").trim());
     items.push({ set, collector_number: number });
     foilByKey[`${set}|${number}`] = foil;
+    if (iName !== -1) nameByKey[`${set}|${number}`] = (r[iName] || "").trim();
   }
   if (!items.length) {
     throw new Error(
@@ -1289,7 +1313,8 @@ async function importMoxfieldCSV(text) {
     );
   }
 
-  let imported = 0, notFound = 0, aborted = null;
+  let imported = 0, aborted = null;
+  const notFoundNames = []; // names of cards Scryfall couldn't match
   const buffer = []; // {id, entry} not yet written to the database
 
   // Writes the buffer in batches of 400 (only removes from the buffer after a successful write).
@@ -1318,7 +1343,11 @@ async function importMoxfieldCSV(text) {
         buffer.push({ id: card.id, entry: collection[card.id] });
         imported++;
       }
-      notFound += (data.not_found || []).length;
+      // not_found echoes back the identifiers we sent; map them to CSV names.
+      for (const nf of (data.not_found || [])) {
+        const key = `${(nf.set || "").toLowerCase()}|${nf.collector_number || ""}`;
+        notFoundNames.push(nameByKey[key] || `${nf.set || "?"} #${nf.collector_number || "?"}`);
+      }
 
       try { await flush(false); }
       catch (err) { aborted = "failed to save (" + err.message + ")"; break; }
@@ -1342,12 +1371,19 @@ async function importMoxfieldCSV(text) {
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
 
   const saved = imported - buffer.length;
+  // Lists every card Scryfall couldn't find, so the user knows what's missing.
+  const notFoundList = notFoundNames.length
+    ? `<div class="import-notfound">
+         <strong>${notFoundNames.length} not found on Scryfall:</strong>
+         <ul>${notFoundNames.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
+       </div>`
+    : "";
   setStatus(ACTION_STATUS,
     (aborted
       ? `Import interrupted: ${aborted}. Saved ${saved} card(s) — run the import again to continue.`
       : `Imported ${imported} card(s) from Moxfield.`) +
     (skippedProxy ? ` ${skippedProxy} proxy(ies) ignored.` : "") +
-    (notFound ? ` ${notFound} not found on Scryfall.` : ""),
+    notFoundList,
     !!aborted);
 }
 
