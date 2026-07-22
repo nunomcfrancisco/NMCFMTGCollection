@@ -183,6 +183,14 @@ a { color: var(--accent-hi); }
 /* ===== Status ===== */
 .status { color: var(--text-dim); padding: 14px 2px; min-height: 8px; }
 .status.error { color: var(--red); }
+/* List of cards Scryfall couldn't find after a CSV import. */
+.import-notfound { margin-top: 10px; font-size: 0.9rem; }
+.import-notfound strong { color: var(--text); }
+.import-notfound ul {
+  margin: 6px 0 0; padding-left: 20px;
+  max-height: 220px; overflow-y: auto;
+}
+.import-notfound li { color: var(--text-dim); margin: 2px 0; }
 
 /* ===== Card grid ===== */
 .card-grid {
