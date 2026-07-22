@@ -135,11 +135,21 @@ a { color: var(--accent-hi); }
   --rarity-pie-sweep: 0deg;
   -webkit-mask: conic-gradient(#000 var(--rarity-pie-sweep), transparent 0deg);
           mask: conic-gradient(#000 var(--rarity-pie-sweep), transparent 0deg);
-  animation: rarity-pie-grow 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  /* Sweep reveals the pie; the second track holds still, then a small bounce
+     pops the whole donut once the sweep finishes. */
+  animation:
+    rarity-pie-grow 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards,
+    rarity-pie-bounce 1.8s ease-out;
 }
 @keyframes rarity-pie-grow {
   from { --rarity-pie-sweep: 0deg; }
   to   { --rarity-pie-sweep: 360deg; }
+}
+@keyframes rarity-pie-bounce {
+  0%, 80% { transform: scale(1); }
+  89%     { transform: scale(1.06); }
+  95%     { transform: scale(0.98); }
+  100%    { transform: scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .rarity-pie { animation: none; --rarity-pie-sweep: 360deg; }
