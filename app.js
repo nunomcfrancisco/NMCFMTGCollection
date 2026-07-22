@@ -61,67 +61,7 @@ window.applyRemoteCollection = (data) => {
   // Update the sets view (set grid and/or the open set detail).
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
   if (editionsState.cards.length && !$("#edition-detail").hidden) renderEdition();
-  backfillPurchaseUris().catch(() => {});
 };
-
-// One-time self-heal for older entries stored before slimCard kept
-// purchase_uris. Without it their Cardmarket link falls back to a search that
-// the site redirects to the product page, dropping our language/sellerCountry
-// filters. We refetch the missing purchase_uris from Scryfall (keyed by card
-// id) and persist it, so those cards link straight to the product page — just
-// like cards outside the collection. Entries are marked (even when not found)
-// so a given load only ever fetches once.
-let backfilling = false;
-async function backfillPurchaseUris() {
-  if (backfilling || !window.Storage) return;
-  const targets = Object.values(collection).filter(
-    (e) => e && e.card && e.card.id && e.card.purchase_uris === undefined
-  );
-  if (!targets.length) return;
-
-  backfilling = true;
-  try {
-    const updated = [];
-    for (let i = 0; i < targets.length; i += 75) { // 75 = Scryfall limit/request
-      const batch = targets.slice(i, i + 75);
-      let data;
-      try {
-        data = await scryfallCollection(batch.map((e) => ({ id: e.card.id })));
-      } catch {
-        break; // network/rate-limit: leave the rest for a later load
-      }
-      const found = new Set();
-      for (const card of (data.data || [])) {
-        found.add(card.id);
-        const entry = collection[card.id];
-        if (entry && entry.card) {
-          entry.card.purchase_uris = card.purchase_uris || {};
-          updated.push({ id: card.id, entry });
-        }
-      }
-      // Mark not-found cards ({}) so we don't refetch them on every load.
-      for (const e of batch) {
-        const entry = collection[e.card.id];
-        if (entry && entry.card && !found.has(e.card.id)) {
-          entry.card.purchase_uris = {};
-          updated.push({ id: e.card.id, entry });
-        }
-      }
-    }
-    if (updated.length) {
-      if (window.Storage.commitMany) {
-        for (let i = 0; i < updated.length; i += 400) {
-          await window.Storage.commitMany(updated.slice(i, i + 400), []);
-        }
-      } else {
-        updated.forEach((u) => window.Storage.upsert(u.id, u.entry));
-      }
-      renderCollection();
-    }
-  } finally {
-    backfilling = false;
-  }
-}
 
 // Formatters created once — building an Intl.NumberFormat is expensive and
 // these are used for every card drawn.
@@ -210,10 +150,43 @@ function cardmarketUrl(card) {
   );
 }
 
+// Resolves the precise Cardmarket product URL, fetching the missing
+// purchase_uris from Scryfall on demand. Older collection entries were stored
+// before slimCard kept purchase_uris; without it the link falls back to a name
+// search that the site redirects, dropping our language/sellerCountry filters.
+// The fetched value is persisted, so each card is resolved at most once.
+// Falls back to the search URL if Scryfall can't be reached.
+async function resolveCardmarketUrl(card) {
+  if (!card || (card.purchase_uris && card.purchase_uris.cardmarket) || !card.id) {
+    return cardmarketUrl(card);
+  }
+  try {
+    const data = await scryfallCollection([{ id: card.id }]);
+    const fresh = (data.data || [])[0];
+    if (fresh && fresh.purchase_uris) {
+      card.purchase_uris = fresh.purchase_uris; // also patches the stored entry
+      const entry = collection[card.id];
+      if (entry && window.Storage) window.Storage.upsert(card.id, entry);
+    }
+  } catch { /* offline / rate-limited: fall through to the search URL */ }
+  return cardmarketUrl(card);
+}
+
 // Opens the card's Cardmarket page in a new tab.
 function openCardmarket(card) {
-  const url = cardmarketUrl(card);
-  window.open(url, "_blank", "noopener");
+  // Fast path: the product URL is already known — open it directly.
+  if (card && card.purchase_uris && card.purchase_uris.cardmarket) {
+    window.open(cardmarketUrl(card), "_blank", "noopener");
+    return;
+  }
+  // Otherwise open the tab now — synchronously, inside the click gesture, so
+  // it isn't popup-blocked — then point it at the product URL once Scryfall
+  // resolves it. (No noopener here: we need the handle to set its location.)
+  const tab = window.open("about:blank", "_blank");
+  resolveCardmarketUrl(card).then((url) => {
+    if (tab && !tab.closed) tab.location.href = url;
+    else window.open(url, "_blank", "noopener");
+  });
 }
 
 // Shows a loader (spinner) while the card image loads and fades it in
