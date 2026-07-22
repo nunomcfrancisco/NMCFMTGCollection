@@ -135,7 +135,7 @@ a { color: var(--accent-hi); }
   --rarity-pie-sweep: 0deg;
   -webkit-mask: conic-gradient(#000 var(--rarity-pie-sweep), transparent 0deg);
           mask: conic-gradient(#000 var(--rarity-pie-sweep), transparent 0deg);
-  animation: rarity-pie-grow 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: rarity-pie-grow 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 @keyframes rarity-pie-grow {
   from { --rarity-pie-sweep: 0deg; }
