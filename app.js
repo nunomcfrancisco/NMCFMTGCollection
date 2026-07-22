@@ -369,21 +369,66 @@ function renderRarityChart(entries) {
 
   const legend = segs.map((o) => {
     const pct = Math.round((counts[o.key] / total) * 100);
+    // Values start at 0 and count up to their target (see animateRarityCounts).
     return `<li class="rarity-legend-item">
         <span class="rarity-swatch" style="background:${o.color}"></span>
         <span class="rarity-legend-label">${o.label}</span>
-        <span class="rarity-legend-count">${numFmt.format(counts[o.key])} · ${pct}%</span>
+        <span class="rarity-legend-count" data-count="${counts[o.key]}" data-pct="${pct}">${numFmt.format(0)} · 0%</span>
       </li>`;
   }).join("");
 
   el.innerHTML = `
     <div class="rarity-pie" style="background: conic-gradient(${stops});">
       <div class="rarity-pie-center">
-        <span class="rarity-pie-total">${numFmt.format(total)}</span>
+        <span class="rarity-pie-total" data-count="${total}">${numFmt.format(0)}</span>
         <span class="rarity-pie-total-label">cards</span>
       </div>
     </div>
     <ul class="rarity-legend">${legend}</ul>`;
+
+  animateRarityCounts(el);
+}
+
+// Counts every rarity number (legend + centre total) up from 0 to its target,
+// over the same 1.8s the pie sweep takes so they grow together.
+function animateRarityCounts(el) {
+  const counters = el.querySelectorAll("[data-count]");
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const setFinal = (node) => {
+    const count = Number(node.dataset.count);
+    const pct = node.dataset.pct;
+    node.textContent = pct === undefined
+      ? numFmt.format(count)
+      : `${numFmt.format(count)} · ${pct}%`;
+  };
+
+  if (reduce) {
+    counters.forEach(setFinal);
+    return;
+  }
+
+  const DURATION = 1800;
+  const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+  const start = performance.now();
+
+  const tick = (now) => {
+    const t = Math.min((now - start) / DURATION, 1);
+    const e = easeOut(t);
+    counters.forEach((node) => {
+      const count = Number(node.dataset.count);
+      const pct = node.dataset.pct;
+      const curCount = Math.round(count * e);
+      if (pct === undefined) {
+        node.textContent = numFmt.format(curCount);
+      } else {
+        node.textContent = `${numFmt.format(curCount)} · ${Math.round(Number(pct) * e)}%`;
+      }
+    });
+    if (t < 1) requestAnimationFrame(tick);
+    else counters.forEach(setFinal);
+  };
+  requestAnimationFrame(tick);
 }
 
 /* ============================================================
