@@ -55,7 +55,7 @@ window.Storage = {
     deleteDoc(doc(db, "users", currentUser.uid, "cards", id))
       .catch((e) => setSyncStatus("Failed to remove: " + e.message, true));
   },
-  // Writes/removes many cards at once, in batches (for imports).
+  // Writes/removes many cards at once, in batches (for imports and bulk delete).
   // upserts: [{ id, entry }] ; deletes: [id]. Returns a Promise.
   async commitMany(upserts = [], deletes = []) {
     if (!db || !currentUser) return;
@@ -64,16 +64,33 @@ window.Storage = {
       ...upserts.map((u) => ["set", u.id, u.entry]),
       ...deletes.map((id) => ["del", id]),
     ];
+
     const CHUNK = 400; // Firestore allows up to 500 operations per batch
+    // Build all batches first…
+    const batches = [];
     for (let i = 0; i < ops.length; i += CHUNK) {
       const batch = writeBatch(db);
       for (const [kind, id, entry] of ops.slice(i, i + CHUNK)) {
         if (kind === "set") batch.set(ref(id), entry);
         else batch.delete(ref(id));
       }
-      await batch.commit();
-      if (i + CHUNK < ops.length) await new Promise((r) => setTimeout(r, 40));
+      batches.push(batch);
     }
+
+    // …then commit them with limited concurrency. Running batches in parallel
+    // (instead of one round-trip at a time) makes large deletes/imports much
+    // faster, while the cap keeps us from flooding Firestore all at once.
+    const CONCURRENCY = 6;
+    let next = 0;
+    const worker = async () => {
+      while (next < batches.length) {
+        const batch = batches[next++];
+        await batch.commit();
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(CONCURRENCY, batches.length) }, worker)
+    );
   },
 };
 
