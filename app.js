@@ -114,13 +114,26 @@ function cardImage(card, size = "normal") {
 //  matching Cardmarket's IDs — 1=MT, 2=NM, 3=EX, 4=GD, 5=LP, 6=PL, 7=PO.)
 const CARDMARKET_FILTERS = { language: 1, sellerCountry: 26, minCondition: 2 };
 
-// Appends the default filters to a Cardmarket URL, respecting any existing query.
+// Applies the default filters to a Cardmarket URL. Uses set() so our values
+// override any params already on the URL — older collection entries carry a
+// Scryfall product URL that already embeds e.g. language=8 (Portuguese), and a
+// naive append would leave a duplicate key that Cardmarket resolves to the
+// wrong value while dropping the rest of our filters.
 function withCardmarketFilters(url) {
-  const sep = url.includes("?") ? "&" : "?";
-  const qs = Object.entries(CARDMARKET_FILTERS)
-    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
-    .join("&");
-  return url + sep + qs;
+  try {
+    const u = new URL(url);
+    for (const [k, v] of Object.entries(CARDMARKET_FILTERS)) {
+      u.searchParams.set(k, v);
+    }
+    return u.toString();
+  } catch {
+    // Fallback for unexpected (e.g. relative) URLs: append naively.
+    const sep = url.includes("?") ? "&" : "?";
+    const qs = Object.entries(CARDMARKET_FILTERS)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join("&");
+    return url + sep + qs;
+  }
 }
 
 // Cardmarket link for a card. Prefers Scryfall's precise product URL
