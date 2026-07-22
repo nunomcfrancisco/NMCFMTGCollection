@@ -296,6 +296,10 @@ function slimCard(card) {
     set_name: card.set_name,
     rarity: card.rarity,
     collector_number: card.collector_number,
+    // For the "by color" / "by type" charts. Fall back to the front face for
+    // double-faced cards, which carry these on card_faces instead of the top level.
+    colors: card.colors || (card.card_faces && card.card_faces[0].colors) || [],
+    type_line: card.type_line || (card.card_faces && card.card_faces[0].type_line) || "",
     prices: card.prices,
     purchase_uris: card.purchase_uris,
     image_uris: card.image_uris,
@@ -325,6 +329,32 @@ const RARITY_CHART = [
   { key: "other", label: "Other", color: "#7a83b8" },
 ];
 
+// Colour buckets. Keys W/U/B/R/G match Scryfall's `colors`; M = multicolor,
+// C = colorless. Swatches echo the five mana colours (kept light for contrast).
+const COLOR_CHART = [
+  { key: "W", label: "White", color: "#f7f3d6" },
+  { key: "U", label: "Blue", color: "#9dd3f4" },
+  { key: "B", label: "Black", color: "#a79f99" },
+  { key: "R", label: "Red", color: "#f19a86" },
+  { key: "G", label: "Green", color: "#9bd3a7" },
+  { key: "M", label: "Multicolor", color: "#e6c65c" },
+  { key: "C", label: "Colorless", color: "#c9c3bd" },
+];
+
+// Type buckets, checked in priority order (a card matches the first whose key
+// appears in its type line, so e.g. an "Artifact Creature" counts as Creature).
+const TYPE_CHART = [
+  { key: "Creature", label: "Creature", color: "#9bd3a7" },
+  { key: "Instant", label: "Instant", color: "#9dd3f4" },
+  { key: "Sorcery", label: "Sorcery", color: "#f19a86" },
+  { key: "Artifact", label: "Artifact", color: "#c9c3bd" },
+  { key: "Enchantment", label: "Enchantment", color: "#e6c65c" },
+  { key: "Planeswalker", label: "Planeswalker", color: "#d59ae0" },
+  { key: "Land", label: "Land", color: "#c9a37a" },
+  { key: "Battle", label: "Battle", color: "#ff8c42" },
+  { key: "other", label: "Other", color: "#7a83b8" },
+];
+
 function renderStats() {
   const entries = Object.values(collection);
   const unique = entries.length;
@@ -335,43 +365,36 @@ function renderStats() {
     <div class="stat"><div class="stat-label">Estimated value</div><div class="stat-value">${eur(totalValue)}</div></div>`;
 
   renderRarityChart(entries);
+  renderColorChart(entries);
+  renderTypeChart(entries);
 }
 
-// Horizontal bar chart: one growing bar under each rarity label.
-function renderRarityChart(entries) {
-  const el = $("#rarity-chart");
+// Generic horizontal bar chart: one growing bar per category.
+// buckets: [{label, color, count}] in display order; total = cards counted.
+function renderBarChart(el, buckets, total, emptyMsg) {
   if (!el) return;
-
-  const total = entries.length;
   if (total === 0) {
-    el.innerHTML = `<p class="hint" style="margin:0;">You don't have any cards in your collection yet.</p>`;
+    el.innerHTML = `<p class="hint" style="margin:0;">${emptyMsg}</p>`;
     return;
   }
 
-  const counts = {};
-  for (const o of RARITY_CHART) counts[o.key] = 0;
-  for (const e of entries) {
-    const r = e.card.rarity;
-    counts[r in counts ? r : "other"]++;
-  }
+  // Only categories with at least one card enter the chart.
+  const segs = buckets.filter((b) => b.count > 0);
+  // Bars scale to the biggest category so the largest fills the track.
+  const max = Math.max(...segs.map((b) => b.count));
 
-  // Only rarities with at least one card enter the chart.
-  const segs = RARITY_CHART.filter((o) => counts[o.key] > 0);
-  // Bars scale to the biggest rarity so the largest fills the track.
-  const max = Math.max(...segs.map((o) => counts[o.key]));
-
-  const bars = segs.map((o) => {
-    const pct = Math.round((counts[o.key] / total) * 100);
-    const width = (counts[o.key] / max) * 100;
+  const bars = segs.map((b) => {
+    const pct = Math.round((b.count / total) * 100);
+    const width = (b.count / max) * 100;
     // Numbers count up (data-count/data-pct) and the fill grows to data-w%.
     return `<li class="rarity-bar-item">
         <div class="rarity-bar-head">
-          <span class="rarity-swatch" style="background:${o.color}"></span>
-          <span class="rarity-bar-label">${o.label}</span>
-          <span class="rarity-bar-count" data-count="${counts[o.key]}" data-pct="${pct}">${numFmt.format(0)} · 0%</span>
+          <span class="rarity-swatch" style="background:${b.color}"></span>
+          <span class="rarity-bar-label">${b.label}</span>
+          <span class="rarity-bar-count" data-count="${b.count}" data-pct="${pct}">${numFmt.format(0)} · 0%</span>
         </div>
         <div class="rarity-bar-track">
-          <div class="rarity-bar-fill" data-w="${width}" style="background:${o.color}"></div>
+          <div class="rarity-bar-fill" data-w="${width}" style="background:${b.color}"></div>
         </div>
       </li>`;
   }).join("");
@@ -379,6 +402,69 @@ function renderRarityChart(entries) {
   el.innerHTML = `<ul class="rarity-bars">${bars}</ul>`;
 
   animateRarityChart(el);
+}
+
+// Cards by rarity.
+function renderRarityChart(entries) {
+  const counts = {};
+  for (const o of RARITY_CHART) counts[o.key] = 0;
+  for (const e of entries) {
+    const r = e.card.rarity;
+    counts[r in counts ? r : "other"]++;
+  }
+  const buckets = RARITY_CHART.map((o) => ({ label: o.label, color: o.color, count: counts[o.key] }));
+  renderBarChart($("#rarity-chart"), buckets, entries.length,
+    "You don't have any cards in your collection yet.");
+}
+
+// Buckets a card into one colour: mono W/U/B/R/G, Multicolor, or Colorless.
+function cardColorKey(card) {
+  const colors = card.colors; // array of W/U/B/R/G
+  if (colors.length === 0) return "C";
+  if (colors.length === 1) return colors[0];
+  return "M";
+}
+
+// Cards by colour. Cards saved before this field existed (colors === undefined)
+// are skipped, so percentages reflect only cards we have colour data for.
+function renderColorChart(entries) {
+  const counts = {};
+  for (const o of COLOR_CHART) counts[o.key] = 0;
+  let known = 0;
+  for (const e of entries) {
+    if (!Array.isArray(e.card.colors)) continue;
+    const k = cardColorKey(e.card);
+    counts[k in counts ? k : "C"]++;
+    known++;
+  }
+  const buckets = COLOR_CHART.map((o) => ({ label: o.label, color: o.color, count: counts[o.key] }));
+  renderBarChart($("#color-chart"), buckets, known,
+    "No colour data yet — re-import your cards to fill this chart.");
+}
+
+// Buckets a card by its primary type, checking TYPE_CHART in priority order.
+function cardTypeKey(card) {
+  // Front face only, and just the types before the "—".
+  const line = String(card.type_line).split("//")[0].split("—")[0];
+  for (const o of TYPE_CHART) {
+    if (o.key !== "other" && line.includes(o.key)) return o.key;
+  }
+  return "other";
+}
+
+// Cards by type. Cards saved before type_line existed are skipped.
+function renderTypeChart(entries) {
+  const counts = {};
+  for (const o of TYPE_CHART) counts[o.key] = 0;
+  let known = 0;
+  for (const e of entries) {
+    if (typeof e.card.type_line !== "string" || !e.card.type_line) continue;
+    counts[cardTypeKey(e.card)]++;
+    known++;
+  }
+  const buckets = TYPE_CHART.map((o) => ({ label: o.label, color: o.color, count: counts[o.key] }));
+  renderBarChart($("#type-chart"), buckets, known,
+    "No type data yet — re-import your cards to fill this chart.");
 }
 
 // Grows each bar from 0 to its width and counts its number up from 0, together
