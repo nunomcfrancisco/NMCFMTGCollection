@@ -61,7 +61,67 @@ window.applyRemoteCollection = (data) => {
   // Update the sets view (set grid and/or the open set detail).
   if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
   if (editionsState.cards.length && !$("#edition-detail").hidden) renderEdition();
+  backfillPurchaseUris().catch(() => {});
 };
+
+// One-time self-heal for older entries stored before slimCard kept
+// purchase_uris. Without it their Cardmarket link falls back to a search that
+// the site redirects to the product page, dropping our language/sellerCountry
+// filters. We refetch the missing purchase_uris from Scryfall (keyed by card
+// id) and persist it, so those cards link straight to the product page — just
+// like cards outside the collection. Entries are marked (even when not found)
+// so a given load only ever fetches once.
+let backfilling = false;
+async function backfillPurchaseUris() {
+  if (backfilling || !window.Storage) return;
+  const targets = Object.values(collection).filter(
+    (e) => e && e.card && e.card.id && e.card.purchase_uris === undefined
+  );
+  if (!targets.length) return;
+
+  backfilling = true;
+  try {
+    const updated = [];
+    for (let i = 0; i < targets.length; i += 75) { // 75 = Scryfall limit/request
+      const batch = targets.slice(i, i + 75);
+      let data;
+      try {
+        data = await scryfallCollection(batch.map((e) => ({ id: e.card.id })));
+      } catch {
+        break; // network/rate-limit: leave the rest for a later load
+      }
+      const found = new Set();
+      for (const card of (data.data || [])) {
+        found.add(card.id);
+        const entry = collection[card.id];
+        if (entry && entry.card) {
+          entry.card.purchase_uris = card.purchase_uris || {};
+          updated.push({ id: card.id, entry });
+        }
+      }
+      // Mark not-found cards ({}) so we don't refetch them on every load.
+      for (const e of batch) {
+        const entry = collection[e.card.id];
+        if (entry && entry.card && !found.has(e.card.id)) {
+          entry.card.purchase_uris = {};
+          updated.push({ id: e.card.id, entry });
+        }
+      }
+    }
+    if (updated.length) {
+      if (window.Storage.commitMany) {
+        for (let i = 0; i < updated.length; i += 400) {
+          await window.Storage.commitMany(updated.slice(i, i + 400), []);
+        }
+      } else {
+        updated.forEach((u) => window.Storage.upsert(u.id, u.entry));
+      }
+      renderCollection();
+    }
+  } finally {
+    backfilling = false;
+  }
+}
 
 // Formatters created once — building an Intl.NumberFormat is expensive and
 // these are used for every card drawn.
