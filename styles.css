@@ -119,61 +119,25 @@ a { color: var(--accent-hi); }
 .settings-danger { border-color: rgba(244, 99, 110, 0.45); }
 
 /* ===== Cards-by-rarity chart ("%" view) ===== */
-.rarity-chart { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; }
-
-/* Registered angle so the conic sweep can be animated (unlike raw gradients). */
-@property --rarity-pie-sweep {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
+.rarity-chart { display: block; }
+.rarity-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.rarity-bar-item { display: grid; gap: 7px; }
+.rarity-bar-head { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
+.rarity-swatch { width: 14px; height: 14px; border-radius: 4px; flex: 0 0 auto; border: 1px solid var(--border); }
+.rarity-bar-label { color: var(--text); font-weight: 600; }
+.rarity-bar-count { margin-left: auto; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.rarity-bar-track {
+  height: 12px; border-radius: 999px; overflow: hidden;
+  background: var(--bg-elev); box-shadow: inset 0 0 0 1px var(--border);
 }
-.rarity-pie {
-  position: relative; flex: 0 0 auto;
-  width: 190px; height: 190px; border-radius: 50%;
-  /* The mask reveals the pie clockwise from 0deg up to the swept angle, so
-     each rarity segment appears to grow in as the sweep passes over it. */
-  --rarity-pie-sweep: 0deg;
-  -webkit-mask: conic-gradient(#000 var(--rarity-pie-sweep), transparent 0deg);
-          mask: conic-gradient(#000 var(--rarity-pie-sweep), transparent 0deg);
-  /* Sweep reveals the pie; the second track holds still, then a small bounce
-     pops the whole donut once the sweep finishes. */
-  animation:
-    rarity-pie-grow 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards,
-    rarity-pie-bounce 1.8s ease-out;
-}
-@keyframes rarity-pie-grow {
-  from { --rarity-pie-sweep: 0deg; }
-  to   { --rarity-pie-sweep: 360deg; }
-}
-@keyframes rarity-pie-bounce {
-  0%, 80% { transform: scale(1); }
-  89%     { transform: scale(1.06); }
-  95%     { transform: scale(0.98); }
-  100%    { transform: scale(1); }
+/* Fill starts at width 0; JS sets the target width and this transition grows it. */
+.rarity-bar-fill {
+  width: 0; height: 100%; border-radius: 999px;
+  transition: width 1.8s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 @media (prefers-reduced-motion: reduce) {
-  .rarity-pie { animation: none; --rarity-pie-sweep: 360deg; }
+  .rarity-bar-fill { transition: none; }
 }
-/* Central hole → donut. */
-.rarity-pie::after {
-  content: ""; position: absolute; inset: 27%;
-  background: var(--bg-elev); border-radius: 50%;
-  box-shadow: inset 0 0 0 1px var(--border);
-}
-.rarity-pie-center {
-  position: absolute; inset: 0; z-index: 1;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  pointer-events: none;
-}
-.rarity-pie-total { font-size: 1.6rem; font-weight: 800; color: var(--text); line-height: 1; }
-.rarity-pie-total-label {
-  color: var(--text-dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px;
-}
-.rarity-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; min-width: 190px; flex: 1 1 190px; }
-.rarity-legend-item { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
-.rarity-swatch { width: 14px; height: 14px; border-radius: 4px; flex: 0 0 auto; border: 1px solid var(--border); }
-.rarity-legend-label { color: var(--text); }
-.rarity-legend-count { margin-left: auto; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
 /* ===== Layout ===== */
 .container { max-width: 1200px; margin: 0 auto; padding: 22px 18px 60px; }
