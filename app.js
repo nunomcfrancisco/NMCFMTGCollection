@@ -364,9 +364,34 @@ function renderStats() {
     <div class="stat"><div class="stat-label">Cards</div><div class="stat-value">${numFmt.format(unique)}</div></div>
     <div class="stat"><div class="stat-label">Estimated value</div><div class="stat-value">${eur(totalValue)}</div></div>`;
 
+  renderTopValue(entries);
   renderRarityChart(entries);
   renderColorChart(entries);
   renderTypeChart(entries);
+}
+
+// The 10 most valuable cards in the collection, by current price (foil-aware).
+function renderTopValue(entries) {
+  const el = $("#top-value");
+  if (!el) return;
+
+  const top = entries
+    .map((e) => ({ card: e.card, foil: e.foil, price: cardPrice(e.card, e.foil) }))
+    .filter((x) => x.price > 0)
+    .sort((a, b) => b.price - a.price)
+    .slice(0, 10);
+
+  if (!top.length) {
+    el.innerHTML = `<p class="hint" style="margin:0;">No priced cards in your collection yet.</p>`;
+    return;
+  }
+
+  el.innerHTML = `<ol class="top-value-list">${top.map((x) => `
+      <li class="top-value-item">
+        <span class="top-value-name">${esc(x.card.name)}${x.foil ? ` <span class="top-value-foil">foil</span>` : ""}</span>
+        <span class="top-value-set">${esc(x.card.set_name || "")}</span>
+        <span class="top-value-price">${eur(x.price)}</span>
+      </li>`).join("")}</ol>`;
 }
 
 // Generic horizontal bar chart: one growing bar per category.

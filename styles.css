@@ -139,6 +139,24 @@ a { color: var(--accent-hi); }
   .rarity-bar-fill { transition: none; }
 }
 
+/* ===== Most valuable cards ("%" view) ===== */
+.top-value-list {
+  list-style: decimal; margin: 0; padding-left: 26px; display: grid; gap: 9px;
+}
+.top-value-item { display: flex; align-items: baseline; gap: 10px; font-size: 0.9rem; }
+.top-value-item::marker { color: var(--text-dim); }
+.top-value-name { color: var(--text); font-weight: 600; }
+.top-value-foil {
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--accent-hi); border: 1px solid var(--border);
+  border-radius: 4px; padding: 0 4px; margin-left: 4px; vertical-align: middle;
+}
+.top-value-set { color: var(--text-dim); font-size: 0.82rem; }
+.top-value-price {
+  margin-left: auto; color: var(--text); font-weight: 700;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
 /* ===== Layout ===== */
 .container { max-width: 1200px; margin: 0 auto; padding: 22px 18px 60px; }
 .view { display: none; }
