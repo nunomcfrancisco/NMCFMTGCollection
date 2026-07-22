@@ -120,9 +120,29 @@ a { color: var(--accent-hi); }
 
 /* ===== Cards-by-rarity chart ("%" view) ===== */
 .rarity-chart { display: flex; flex-wrap: wrap; align-items: center; gap: 30px; }
+
+/* Registered angle so the conic sweep can be animated (unlike raw gradients). */
+@property --rarity-pie-sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
 .rarity-pie {
   position: relative; flex: 0 0 auto;
   width: 190px; height: 190px; border-radius: 50%;
+  /* The mask reveals the pie clockwise from 0deg up to the swept angle, so
+     each rarity segment appears to grow in as the sweep passes over it. */
+  --rarity-pie-sweep: 0deg;
+  -webkit-mask: conic-gradient(#000 var(--rarity-pie-sweep), transparent 0deg);
+          mask: conic-gradient(#000 var(--rarity-pie-sweep), transparent 0deg);
+  animation: rarity-pie-grow 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+@keyframes rarity-pie-grow {
+  from { --rarity-pie-sweep: 0deg; }
+  to   { --rarity-pie-sweep: 360deg; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rarity-pie { animation: none; --rarity-pie-sweep: 360deg; }
 }
 /* Central hole → donut. */
 .rarity-pie::after {
