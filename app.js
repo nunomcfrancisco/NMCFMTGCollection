@@ -653,7 +653,7 @@ function collectionMissingCardEl(card) {
 
   el.innerHTML = `
     <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
-      <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
+      <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
       <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
@@ -682,7 +682,7 @@ function collectionCardEl(entry) {
 
   el.innerHTML = `
     <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
-      <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
+      <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
       ${foil ? `<span class="card-foil-badge">FOIL</span>` : ""}
     </div>
     <div class="card-body">
@@ -938,7 +938,7 @@ function editionCardEl(card) {
 
   el.innerHTML = `
     <div class="card-img-wrap" data-large="${esc(cardImage(card, "large"))}">
-      <img loading="lazy" src="${esc(cardImage(card, "small"))}" alt="${esc(card.name)}" />
+      <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
       <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
