@@ -57,6 +57,19 @@ window.Storage = {
   },
   // Writes/removes many cards at once, in batches (for imports and bulk delete).
   // upserts: [{ id, entry }] ; deletes: [id]. Returns a Promise.
+  // Detaches the live listener during a bulk write. The offline cache
+  // (IndexedDB) can throw "INTERNAL ASSERTION FAILED: Unexpected state" when
+  // the onSnapshot reader and a writeBatch hit the cache at the same time —
+  // most often on mobile, where multi-tab coordination adds extra IndexedDB
+  // pressure. Pausing the reader while we write avoids that collision.
+  pauseSync() {
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  },
+  // Re-attaches the listener (and re-renders from the database) after a bulk
+  // write. Safe to call when already subscribed or signed out.
+  resumeSync() {
+    if (currentUser && !unsubscribe) subscribe();
+  },
   async commitMany(upserts = [], deletes = []) {
     if (!db || !currentUser) return;
     const ref = (id) => doc(db, "users", currentUser.uid, "cards", id);
@@ -135,6 +148,13 @@ function init() {
    ============================================================ */
 function start() {
   setSyncStatus(`<span class="spinner"></span>Loading from the database…`);
+  subscribe();
+}
+
+// Attaches the real-time listener. Extracted from start() so it can be
+// re-attached after a bulk write (see Storage.pauseSync / resumeSync).
+function subscribe() {
+  if (!db || !currentUser || unsubscribe) return;
   const col = collection(db, "users", currentUser.uid, "cards");
   unsubscribe = onSnapshot(
     col,
