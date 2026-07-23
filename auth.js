@@ -3,8 +3,8 @@
    ------------------------------------------------------------
    - Firestore is the SOURCE OF TRUTH (one document per card in
      users/{uid}/cards/{cardId}).
-   - Offline cache + real-time sync are handled by Firestore
-     itself (persistentLocalCache + onSnapshot).
+   - Real-time sync is handled by Firestore itself (onSnapshot) over an
+     in-memory cache — the IndexedDB persistent cache hung on mobile.
    - Google login (required to use the app).
    ============================================================ */
 
@@ -13,7 +13,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  initializeFirestore, persistentLocalCache, persistentSingleTabManager,
+  initializeFirestore, memoryLocalCache,
   collection, doc, setDoc, deleteDoc, writeBatch, onSnapshot,
   getDocsFromServer, query, limit,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -38,6 +38,8 @@ let db = null;
 let currentUser = null;
 let unsubscribe = null; // cancels the onSnapshot on sign-out
 let rejected = false;   // true when an unauthorized account signed in
+let loadedOnce = false; // true once the collection has loaded (listener or fallback)
+let loadWatchdog = null; // timer that forces a server read if the load stalls
 
 /* ============================================================
    Public API used by app.js
@@ -141,18 +143,19 @@ if (!configured) {
 } else {
   const app = initializeApp(cfg);
   auth = getAuth(app);
-  // Firestore with persistent offline cache (works without a connection).
-  // Single-tab manager on purpose: the multi-tab manager coordinates the
-  // IndexedDB cache across tabs with extra locking that some mobile browsers
-  // (notably iOS Safari/WebKit) handle badly, throwing "INTERNAL ASSERTION
-  // FAILED: Unexpected state" when a large collection is first loaded into an
-  // empty cache — which left the listener never delivering the cards on the
-  // phone even though the PC import had written them to the server. This is a
-  // single-owner app, so cross-tab sync buys us nothing; single-tab is far
-  // more stable on mobile.
+  // Firestore with an in-memory cache (no IndexedDB persistence).
+  //
+  // The persistent (IndexedDB) cache never worked on the owner's phone: on
+  // some mobile browsers the SDK hangs while opening/coordinating the
+  // IndexedDB cache, so the onSnapshot listener never delivered the first
+  // snapshot — the app sat on "Loading from the database…" forever even
+  // though the PC import had written the cards to the server. Firestore is
+  // the source of truth here and the app is used online, so we trade the
+  // offline-across-reloads cache for a memory cache that can't wedge on
+  // IndexedDB. Real-time sync via onSnapshot still works exactly the same.
   db = initializeFirestore(app, {
     ignoreUndefinedProperties: true, // slimCard may have card_faces: undefined
-    localCache: persistentLocalCache({ tabManager: persistentSingleTabManager(undefined) }),
+    localCache: memoryLocalCache(),
   });
   init();
 }
@@ -180,8 +183,14 @@ function init() {
    Session started → listen to the collection in real time
    ============================================================ */
 function start() {
+  loadedOnce = false;
   setSyncStatus(`<span class="spinner"></span>Loading from the database…`);
   subscribe();
+  // Safety net: if the listener hasn't delivered the first snapshot shortly
+  // (a stalled sync, seen on mobile), pull the cards once straight from the
+  // server so the screen doesn't sit on "Loading…" forever.
+  clearTimeout(loadWatchdog);
+  loadWatchdog = setTimeout(() => { if (!loadedOnce) loadFromServerOnce(); }, 8000);
 }
 
 // Attaches the real-time listener. Extracted from start() so it can be
@@ -192,6 +201,8 @@ function subscribe() {
   unsubscribe = onSnapshot(
     col,
     (snap) => {
+      loadedOnce = true;
+      clearTimeout(loadWatchdog);
       const data = {};
       snap.forEach((d) => { data[d.id] = d.data(); });
       window.applyRemoteCollection(data);
@@ -202,34 +213,40 @@ function subscribe() {
       );
     },
     (err) => {
-      // If the live listener fails (e.g. the IndexedDB cache tripping the
-      // "Unexpected state" assertion on a mobile browser), don't leave the
-      // user staring at an empty collection: detach and read the cards once
-      // straight from the server so they still load. Live sync stays off until
-      // the next reload, but the collection is visible.
+      // If the live listener errors, don't leave the user staring at an empty
+      // collection: detach and read the cards once straight from the server so
+      // they still load. Live sync stays off until the next reload.
       if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-      loadFromServerOnce(err.message);
+      loadFromServerOnce();
     }
   );
 }
 
 // One-time read of the whole collection from the server (not the cache).
-// Used as a fallback when the real-time listener can't deliver the data.
-async function loadFromServerOnce(reason) {
+// Used as a fallback when the real-time listener stalls or errors.
+async function loadFromServerOnce() {
   if (!db || !currentUser) return;
   try {
     const col = collection(db, "users", currentUser.uid, "cards");
     const snap = await getDocsFromServer(col);
+    loadedOnce = true;
+    clearTimeout(loadWatchdog);
     const data = {};
     snap.forEach((d) => { data[d.id] = d.data(); });
     window.applyRemoteCollection(data);
-    setSyncStatus("Loaded from the database (live sync off — reload to reconnect).");
+    // If the listener is still attached, live sync is on; if the error path
+    // detached it, tell the user a reload is needed to reconnect it.
+    setSyncStatus(unsubscribe
+      ? "Connected to the database ✓"
+      : "Loaded from the database (reload to reconnect live sync).");
   } catch (e) {
-    setSyncStatus("Database error: " + (reason || e.message), true);
+    setSyncStatus("Database error: " + e.message, true);
   }
 }
 
 function stop() {
+  clearTimeout(loadWatchdog);
+  loadedOnce = false;
   if (unsubscribe) { unsubscribe(); unsubscribe = null; }
   window.applyRemoteCollection({}); // clears the view on sign-out
 }
