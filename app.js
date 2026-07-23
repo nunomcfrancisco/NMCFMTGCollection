@@ -45,6 +45,13 @@ function persistMany(ids) {
   return Promise.resolve();
 }
 
+// Detaches / re-attaches the real-time listener around a bulk write, so the
+// Firestore offline cache isn't read and written at the same time (which can
+// throw "INTERNAL ASSERTION FAILED: Unexpected state" mid-import). No-ops if
+// the data layer doesn't expose them.
+function pauseSync() { window.Storage?.pauseSync?.(); }
+function resumeSync() { window.Storage?.resumeSync?.(); }
+
 /* ---------- Bridge with the data layer (auth.js) ---------- */
 // Returns the current collection (used when writing to the database).
 window.getCollection = () => collection;
@@ -1173,6 +1180,7 @@ $("#clear-btn").addEventListener("click", async () => {
   setActionsBusy(true);
   setStatus(ACTION_STATUS, `<span class="spinner"></span>Deleting…`);
   importing = true; // prevents partial snapshots from touching the collection
+  pauseSync();      // keep the listener off the cache during the bulk delete
   try {
     if (window.Storage && window.Storage.commitMany) {
       await window.Storage.commitMany([], ids); // deletes in batches
@@ -1185,6 +1193,7 @@ $("#clear-btn").addEventListener("click", async () => {
     setStatus(ACTION_STATUS, `Failed to delete: ${esc(err.message)} — reload the page.`, true);
   } finally {
     importing = false;
+    resumeSync();
     setActionsBusy(false);
   }
 });
@@ -1222,10 +1231,12 @@ $("#import-file").addEventListener("change", async (e) => {
     }
     Object.keys(collection).forEach((id) => affected.add(id));
     importing = true; // don't let partial snapshots touch the collection
+    pauseSync();      // keep the listener off the cache during the bulk write
     try {
       await persistMany([...affected]);
     } finally {
       importing = false;
+      resumeSync();
     }
     renderCollection();
     setStatus(ACTION_STATUS, "Collection imported successfully.");
@@ -1353,6 +1364,7 @@ async function importMoxfieldCSV(text) {
   }
 
   importing = true; // from here on, snapshots don't touch the collection
+  pauseSync();      // …and the listener stays off the cache while we write
   try {
     for (let i = 0; i < items.length; i += 75) { // 75 = Scryfall limit per request
       const batch = items.slice(i, i + 75);
@@ -1388,6 +1400,7 @@ async function importMoxfieldCSV(text) {
     }
   } finally {
     importing = false;
+    resumeSync(); // re-attach the listener and resync from the database
   }
 
   // Ensures the set symbols/percentages have loaded (avoids a re-render
