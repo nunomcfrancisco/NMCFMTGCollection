@@ -1182,8 +1182,16 @@ $("#clear-btn").addEventListener("click", async () => {
   importing = true; // prevents partial snapshots from touching the collection
   pauseSync();      // keep the listener off the cache during the bulk delete
   try {
+    // Fast pass: delete the cards we already know about, in batches.
     if (window.Storage && window.Storage.commitMany) {
-      await window.Storage.commitMany([], ids); // deletes in batches
+      await window.Storage.commitMany([], ids);
+    }
+    // Server sweep: remove anything still on the server that wasn't in memory
+    // (a stale/partial local copy would otherwise leave cards behind that
+    // reappear on the next sync). Loops until the collection is truly empty.
+    if (window.Storage && window.Storage.deleteAll) {
+      await window.Storage.deleteAll((n) =>
+        setStatus(ACTION_STATUS, `<span class="spinner"></span>Deleting… ${n} cleared`));
     }
     collection = {};
     collectionView.setCode = null;
