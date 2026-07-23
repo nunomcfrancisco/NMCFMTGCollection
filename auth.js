@@ -13,7 +13,7 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  initializeFirestore, persistentLocalCache, persistentSingleTabManager,
   collection, doc, setDoc, deleteDoc, writeBatch, onSnapshot,
   getDocsFromServer, query, limit,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -142,9 +142,17 @@ if (!configured) {
   const app = initializeApp(cfg);
   auth = getAuth(app);
   // Firestore with persistent offline cache (works without a connection).
+  // Single-tab manager on purpose: the multi-tab manager coordinates the
+  // IndexedDB cache across tabs with extra locking that some mobile browsers
+  // (notably iOS Safari/WebKit) handle badly, throwing "INTERNAL ASSERTION
+  // FAILED: Unexpected state" when a large collection is first loaded into an
+  // empty cache — which left the listener never delivering the cards on the
+  // phone even though the PC import had written them to the server. This is a
+  // single-owner app, so cross-tab sync buys us nothing; single-tab is far
+  // more stable on mobile.
   db = initializeFirestore(app, {
     ignoreUndefinedProperties: true, // slimCard may have card_faces: undefined
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    localCache: persistentLocalCache({ tabManager: persistentSingleTabManager(undefined) }),
   });
   init();
 }
@@ -193,8 +201,32 @@ function subscribe() {
           : "Connected to the database ✓"
       );
     },
-    (err) => setSyncStatus("Database error: " + err.message, true)
+    (err) => {
+      // If the live listener fails (e.g. the IndexedDB cache tripping the
+      // "Unexpected state" assertion on a mobile browser), don't leave the
+      // user staring at an empty collection: detach and read the cards once
+      // straight from the server so they still load. Live sync stays off until
+      // the next reload, but the collection is visible.
+      if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+      loadFromServerOnce(err.message);
+    }
   );
+}
+
+// One-time read of the whole collection from the server (not the cache).
+// Used as a fallback when the real-time listener can't deliver the data.
+async function loadFromServerOnce(reason) {
+  if (!db || !currentUser) return;
+  try {
+    const col = collection(db, "users", currentUser.uid, "cards");
+    const snap = await getDocsFromServer(col);
+    const data = {};
+    snap.forEach((d) => { data[d.id] = d.data(); });
+    window.applyRemoteCollection(data);
+    setSyncStatus("Loaded from the database (live sync off — reload to reconnect).");
+  } catch (e) {
+    setSyncStatus("Database error: " + (reason || e.message), true);
+  }
 }
 
 function stop() {
