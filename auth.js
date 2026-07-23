@@ -15,6 +15,7 @@ import {
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   collection, doc, setDoc, deleteDoc, writeBatch, onSnapshot,
+  getDocsFromServer, query, limit,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const cfg = window.FIREBASE_CONFIG || {};
@@ -104,6 +105,30 @@ window.Storage = {
     await Promise.all(
       Array.from({ length: Math.min(CONCURRENCY, batches.length) }, worker)
     );
+  },
+  // Deletes EVERY card straight from the server, not just the ones currently in
+  // memory. The in-memory collection can be stale (e.g. loaded from the offline
+  // cache, or only partially synced after a big import), so deleting by
+  // Object.keys(collection) could leave server documents behind that reappear on
+  // the next sync. This reads a page from the server, deletes it, and repeats
+  // until the collection is truly empty. Returns the number of cards removed.
+  async deleteAll(onProgress) {
+    if (!db || !currentUser) return 0;
+    const col = collection(db, "users", currentUser.uid, "cards");
+    let total = 0;
+    for (;;) {
+      // Read from the server (not the cache) so we see what's really there.
+      const snap = await getDocsFromServer(query(col, limit(300)));
+      if (snap.empty) break;
+      const batch = writeBatch(db);
+      snap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      total += snap.size;
+      if (onProgress) onProgress(total);
+      // Fewer than a full page means we just cleared the last of them.
+      if (snap.size < 300) break;
+    }
+    return total;
   },
 };
 
