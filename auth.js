@@ -141,6 +141,13 @@ if (!configured) {
   renderGateNeedsConfig();
   authArea.innerHTML = `<span class="auth-note" title="Configure config.js">⚠️ No database</span>`;
 } else {
+  // Drop the orphaned IndexedDB left behind by older versions that used the
+  // Firestore persistent cache. We no longer open it (memory cache below), so
+  // it's dead weight — and on a browser where that cache got into a bad state
+  // it's exactly what made the old build hang on "Loading…". Best-effort and
+  // non-blocking; harmless when there's nothing to delete.
+  clearLegacyFirestoreCache();
+
   const app = initializeApp(cfg);
   auth = getAuth(app);
   // Firestore with an in-memory cache (no IndexedDB persistence).
@@ -325,4 +332,18 @@ function setSyncStatus(html, isError = false) {
   if (!el) return;
   el.innerHTML = html;
   el.classList.toggle("error", isError);
+}
+
+// Deletes the Firestore offline-persistence IndexedDB databases left over from
+// earlier versions of the app (their names start with "firestore/"). We use an
+// in-memory cache now, so these are never reopened; removing them frees storage
+// and clears any bad state a previous persistent-cache build may have left.
+async function clearLegacyFirestoreCache() {
+  try {
+    if (!window.indexedDB || typeof indexedDB.databases !== "function") return;
+    const dbs = await indexedDB.databases();
+    for (const { name } of dbs) {
+      if (name && name.startsWith("firestore/")) indexedDB.deleteDatabase(name);
+    }
+  } catch { /* best-effort cleanup — ignore unsupported/blocked cases */ }
 }
