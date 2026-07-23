@@ -1358,7 +1358,7 @@ async function importMoxfieldCSV(text) {
     );
   }
 
-  let imported = 0, aborted = null;
+  let imported = 0, skippedExisting = 0, aborted = null;
   const notFoundNames = []; // names of cards Scryfall couldn't match
   const buffer = []; // {id, entry} not yet written to the database
 
@@ -1384,16 +1384,15 @@ async function importMoxfieldCSV(text) {
       } catch (err) { aborted = err.message; break; }
 
       for (const card of (data.data || [])) {
+        // If the card is already in the collection, leave it untouched: an
+        // import never overwrites or re-saves what the user already owns. This
+        // also makes re-running an interrupted import cheap — everything saved
+        // in a previous run is simply skipped (less pressure on the Firestore
+        // cache) — and de-duplicates repeated rows within the same CSV.
+        if (collection[card.id]) { skippedExisting++; continue; }
         const foil = foilByKey[`${card.set}|${card.collector_number}`] || false;
-        // Was this card already saved (from a previous run) with the same foil?
-        const prev = collection[card.id];
-        const alreadySaved = prev && prev.qty === 1 && prev.foil === foil;
         addToCollection(card, foil, true); // defer: we write in batches
-        // Skip re-writing cards that are already in the database. On a fresh
-        // import this changes nothing; when re-running after an interruption it
-        // means we only write what's still missing — a big saving for large
-        // collections and less pressure on the Firestore cache.
-        if (!alreadySaved) buffer.push({ id: card.id, entry: collection[card.id] });
+        buffer.push({ id: card.id, entry: collection[card.id] });
         imported++;
       }
       // not_found echoes back the identifiers we sent; map them to CSV names.
@@ -1436,6 +1435,7 @@ async function importMoxfieldCSV(text) {
     (aborted
       ? `Import interrupted: ${aborted}. Saved ${saved} card(s) — run the import again to continue.`
       : `Imported ${imported} card(s) from Moxfield.`) +
+    (skippedExisting ? ` ${skippedExisting} already in the collection ignored.` : "") +
     (skippedProxy ? ` ${skippedProxy} proxy(ies) ignored.` : "") +
     notFoundList,
     !!aborted);
