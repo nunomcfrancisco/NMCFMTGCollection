@@ -1377,8 +1377,15 @@ async function importMoxfieldCSV(text) {
 
       for (const card of (data.data || [])) {
         const foil = foilByKey[`${card.set}|${card.collector_number}`] || false;
+        // Was this card already saved (from a previous run) with the same foil?
+        const prev = collection[card.id];
+        const alreadySaved = prev && prev.qty === 1 && prev.foil === foil;
         addToCollection(card, foil, true); // defer: we write in batches
-        buffer.push({ id: card.id, entry: collection[card.id] });
+        // Skip re-writing cards that are already in the database. On a fresh
+        // import this changes nothing; when re-running after an interruption it
+        // means we only write what's still missing — a big saving for large
+        // collections and less pressure on the Firestore cache.
+        if (!alreadySaved) buffer.push({ id: card.id, entry: collection[card.id] });
         imported++;
       }
       // not_found echoes back the identifiers we sent; map them to CSV names.
