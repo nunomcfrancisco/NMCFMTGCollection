@@ -797,6 +797,24 @@ function renderCollectionDetail() {
   grid.appendChild(frag);
 }
 
+// Markup for the little "copy the card name" button (shown on every card).
+function copyNameBtnHtml() {
+  return `<div class="card-copy"><button class="btn btn-sm copy-name-btn">⧉ Copy</button></div>`;
+}
+// Wires the copy button: copies the card name and briefly confirms it.
+function wireCopyNameBtn(el, card) {
+  const btn = el.querySelector(".copy-name-btn");
+  if (!btn) return;
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(card.name).then(() => {
+      const prev = btn.textContent;
+      btn.textContent = "✓ Copied";
+      setTimeout(() => { btn.textContent = prev; }, 1200);
+    }).catch(() => {});
+  });
+}
+
 // Missing card in the Collection (not owned): grayed out, with an add button.
 function collectionMissingCardEl(card) {
   const el = document.createElement("div");
@@ -810,9 +828,11 @@ function collectionMissingCardEl(card) {
     <div class="card-body">
       <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
+      ${copyNameBtnHtml()}
       <div class="card-actions"></div>
     </div>`;
 
+  wireCopyNameBtn(el, card);
   const actions = el.querySelector(".card-actions");
   makeOwnToggle(card, el, actions, () => renderCollection())();
 
@@ -840,12 +860,14 @@ function collectionCardEl(entry) {
     <div class="card-body">
       <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
       <div class="card-price">${unit ? eur(unit) : "—"}</div>
+      ${copyNameBtnHtml()}
       <div class="card-actions">
         <button class="btn btn-sm foil-btn">${foil ? "★ Foil" : "☆ Foil"}</button>
         <button class="btn btn-sm remove-btn" style="margin-left:auto">🗑 Remove</button>
       </div>
     </div>`;
 
+  wireCopyNameBtn(el, card);
   el.querySelector(".foil-btn").addEventListener("click", () => toggleFoil(card.id));
   el.querySelector(".remove-btn").addEventListener("click", () => {
     removeFromCollection(card.id);
@@ -1095,9 +1117,11 @@ function editionCardEl(card) {
     <div class="card-body">
       <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
       <div class="card-price">${price ? eur(price) : "—"}</div>
+      ${copyNameBtnHtml()}
       <div class="card-actions"></div>
     </div>`;
 
+  wireCopyNameBtn(el, card);
   const actions = el.querySelector(".card-actions");
   makeOwnToggle(card, el, actions, () => {
     // If the "missing only" filter is active, rebuild the list; otherwise just the stats.
