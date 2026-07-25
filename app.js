@@ -229,6 +229,18 @@ function rarityLetterHtml(rarity) {
   return `<span class="rarity-letter rarity-${key}">${letter}</span>`;
 }
 
+/* ---------- Inline SVG icons for the compact card action buttons ---------- */
+const ICON_STAR = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+const ICON_LINK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+const ICON_COPY = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+const ICON_TRASH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+
+// Card meta line: collector number + rarity on the left, price pushed to the right.
+function cardMetaHtml(card, price) {
+  return `<span class="card-meta-info">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</span>` +
+    `<span class="card-price">${price ? eur(price) : "—"}</span>`;
+}
+
 /* ============================================================
    NAVIGATION BETWEEN VIEWS
    ============================================================ */
@@ -797,25 +809,39 @@ function renderCollectionDetail() {
   grid.appendChild(frag);
 }
 
-// A row with the card price on the left and a "copy the card name" button on
-// the right — the Copy button lines up above the action button below it.
-function priceRowHtml(price) {
-  return `<div class="card-price-row">
-      <span class="card-price">${price ? eur(price) : "—"}</span>
-      <button class="btn btn-sm copy-name-btn">⧉ Copy</button>
-    </div>`;
-}
 // Wires the copy button: copies the card name and briefly confirms it.
+// The button holds only an icon, so we swap innerHTML (not textContent) and
+// restore it after a moment.
 function wireCopyNameBtn(el, card) {
   const btn = el.querySelector(".copy-name-btn");
   if (!btn) return;
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     navigator.clipboard.writeText(card.name).then(() => {
-      const prev = btn.textContent;
-      btn.textContent = "✓ Copied";
-      setTimeout(() => { btn.textContent = prev; }, 1200);
+      if (btn.classList.contains("copied")) return;
+      const prev = btn.innerHTML;
+      btn.classList.add("copied");
+      btn.innerHTML = "✓";
+      setTimeout(() => { btn.innerHTML = prev; btn.classList.remove("copied"); }, 1200);
     }).catch(() => {});
+  });
+}
+
+// Wires the "open on Cardmarket" button (same action as the old image click).
+function wireLinkBtn(el, card) {
+  const btn = el.querySelector(".link-btn");
+  if (!btn) return;
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openCardmarket(card);
+  });
+}
+
+// Wires the card image to open the full-size art in the preview overlay.
+function wireImagePreview(imgWrap, card) {
+  if (!imgWrap) return;
+  imgWrap.addEventListener("click", () => {
+    openPreview(imgWrap.dataset.large || cardImage(card, "large") || cardImage(card, "normal"));
   });
 }
 
@@ -830,21 +856,21 @@ function collectionMissingCardEl(card) {
       <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
-      <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
-      ${priceRowHtml(price)}
-      <div class="card-actions"></div>
+      <div class="card-meta">${cardMetaHtml(card, price)}</div>
+      <div class="card-actions">
+        <button class="btn btn-sm btn-icon link-btn" aria-label="Open on Cardmarket" title="Open on Cardmarket">${ICON_LINK}</button>
+        <button class="btn btn-sm btn-icon copy-name-btn" aria-label="Copy name" title="Copy name">${ICON_COPY}</button>
+        <div class="own-toggle"></div>
+      </div>
     </div>`;
 
   wireCopyNameBtn(el, card);
-  const actions = el.querySelector(".card-actions");
-  makeOwnToggle(card, el, actions, () => renderCollection())();
+  wireLinkBtn(el, card);
+  makeOwnToggle(card, el, el.querySelector(".own-toggle"), () => renderCollection())();
 
   const imgWrap = el.querySelector(".card-img-wrap");
   wireCardImageLoader(imgWrap);
-  imgWrap.addEventListener("click", (e) => {
-    if (e.target.closest(".card-actions")) return;
-    openCardmarket(card);
-  });
+  wireImagePreview(imgWrap, card);
 
   return el;
 }
@@ -861,15 +887,17 @@ function collectionCardEl(entry) {
       ${foil ? `<span class="card-foil-badge">FOIL</span>` : ""}
     </div>
     <div class="card-body">
-      <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
-      ${priceRowHtml(unit)}
-      <div class="card-actions">
-        <button class="btn btn-sm foil-btn">${foil ? "★ Foil" : "☆ Foil"}</button>
-        <button class="btn btn-sm remove-btn" aria-label="Remove" title="Remove">🗑</button>
+      <div class="card-meta">${cardMetaHtml(card, unit)}</div>
+      <div class="card-actions card-actions-icons">
+        <button class="btn btn-sm btn-icon foil-btn ${foil ? "foil-on" : ""}" aria-pressed="${foil}" aria-label="Foil" title="${foil ? "Foil" : "Mark as foil"}">${ICON_STAR}</button>
+        <button class="btn btn-sm btn-icon link-btn" aria-label="Open on Cardmarket" title="Open on Cardmarket">${ICON_LINK}</button>
+        <button class="btn btn-sm btn-icon copy-name-btn" aria-label="Copy name" title="Copy name">${ICON_COPY}</button>
+        <button class="btn btn-sm btn-icon remove-btn" aria-label="Remove" title="Remove">${ICON_TRASH}</button>
       </div>
     </div>`;
 
   wireCopyNameBtn(el, card);
+  wireLinkBtn(el, card);
   el.querySelector(".foil-btn").addEventListener("click", () => toggleFoil(card.id));
   el.querySelector(".remove-btn").addEventListener("click", () => {
     removeFromCollection(card.id);
@@ -877,10 +905,7 @@ function collectionCardEl(entry) {
   });
   const imgWrap = el.querySelector(".card-img-wrap");
   wireCardImageLoader(imgWrap);
-  imgWrap.addEventListener("click", (e) => {
-    if (e.target.closest(".card-actions")) return;
-    openCardmarket(card);
-  });
+  wireImagePreview(imgWrap, card);
 
   return el;
 }
@@ -1117,14 +1142,17 @@ function editionCardEl(card) {
       <img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />
     </div>
     <div class="card-body">
-      <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
-      ${priceRowHtml(price)}
-      <div class="card-actions"></div>
+      <div class="card-meta">${cardMetaHtml(card, price)}</div>
+      <div class="card-actions">
+        <button class="btn btn-sm btn-icon link-btn" aria-label="Open on Cardmarket" title="Open on Cardmarket">${ICON_LINK}</button>
+        <button class="btn btn-sm btn-icon copy-name-btn" aria-label="Copy name" title="Copy name">${ICON_COPY}</button>
+        <div class="own-toggle"></div>
+      </div>
     </div>`;
 
   wireCopyNameBtn(el, card);
-  const actions = el.querySelector(".card-actions");
-  makeOwnToggle(card, el, actions, () => {
+  wireLinkBtn(el, card);
+  makeOwnToggle(card, el, el.querySelector(".own-toggle"), () => {
     // If the "missing only" filter is active, rebuild the list; otherwise just the stats.
     if ($("#edition-missing-only").checked) renderEdition();
     else refreshEditionStats();
@@ -1132,10 +1160,7 @@ function editionCardEl(card) {
 
   const imgWrap = el.querySelector(".card-img-wrap");
   wireCardImageLoader(imgWrap);
-  imgWrap.addEventListener("click", (e) => {
-    if (e.target.closest(".card-actions")) return;
-    openCardmarket(card);
-  });
+  wireImagePreview(imgWrap, card);
 
   return el;
 }
