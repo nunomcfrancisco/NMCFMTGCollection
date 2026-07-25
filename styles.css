@@ -252,7 +252,9 @@ a { color: var(--accent-hi); }
 }
 .card-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .card-name { font-weight: 700; font-size: 0.95rem; line-height: 1.2; }
-.card-meta { color: var(--text-dim); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.4px; }
+/* Number + rarity on the left, price on the right (space-between). */
+.card-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--text-dim); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.4px; }
+.card-meta-info { min-width: 0; }
 .rarity-letter { font-weight: 700; }
 .rarity-common { color: #ffffff; }
 .rarity-uncommon { color: #9aa0a6; }
