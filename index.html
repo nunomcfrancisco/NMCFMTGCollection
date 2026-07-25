@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Magic Collection</title>
   <meta name="description" content="Manage your Magic: The Gathering collection — stored in a cloud database." />
+  <!-- PWA: installable app + standalone window on Chrome ("Install / Create shortcut") -->
+  <link rel="manifest" href="manifest.webmanifest?v=58" />
+  <meta name="theme-color" content="#0b0e1f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MTG Collection" />
   <link rel="preconnect" href="https://api.scryfall.com" />
   <link rel="preconnect" href="https://cards.scryfall.io" />
   <!-- Firebase / Google (SDK, Firestore and login) — saves the initial handshake -->
@@ -15,7 +22,7 @@
   <link rel="stylesheet" href="styles.css?v=58" />
   <link rel="icon" type="image/svg+xml" href="icon.svg?v=58" />
   <link rel="alternate icon" href="icon.png?v=58" />
-  <link rel="apple-touch-icon" href="icon.png?v=58" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
 </head>
 <body>
   <header class="topbar">
@@ -206,5 +213,16 @@
   <script src="config.js?v=58"></script>
   <script src="app.js?v=58"></script>
   <script src="auth.js?v=58" type="module"></script>
+
+  <!-- PWA: register the service worker so the app is installable and works offline -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((err) => {
+          console.warn('Service worker registration failed:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

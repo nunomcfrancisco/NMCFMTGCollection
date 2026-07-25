@@ -88,6 +88,21 @@ automatically. You only need to enable Pages once:
 3. Push to the main branch — the app will be at
    `https://<user>.github.io/<repository>/`.
 
+## Install as an app (PWA)
+
+The site is a **Progressive Web App**, so you can install it and use it in its own
+window like a native app — no browser tabs or address bar.
+
+- **Chrome / Edge (desktop):** open the site and use the install icon in the address
+  bar, or **⋮ menu → Cast, save, and share → Install page as app** (a.k.a.
+  *Install / Create shortcut* — tick *Open as window*).
+- **Chrome (Android):** **⋮ menu → Add to Home screen / Install app**.
+- **Safari (iOS/iPadOS):** **Share → Add to Home Screen**.
+
+Once installed it launches standalone (with the app icon and a matching dark theme),
+and a service worker (`sw.js`) caches the interface so it opens even offline — the
+collection itself still syncs through Firestore's own offline cache.
+
 ## Collection migration (JSON)
 
 If you had data in another version, use the **Export** button to save the collection as
