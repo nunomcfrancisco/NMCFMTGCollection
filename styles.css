@@ -258,16 +258,22 @@ a { color: var(--accent-hi); }
 .rarity-uncommon { color: #9aa0a6; }
 .rarity-rare { color: #f2c94c; }
 .rarity-mythic { color: #ff8c42; }
-.card-price { color: var(--accent-hi); font-weight: 700; font-size: 0.9rem; }
-.card-actions { margin-top: auto; display: flex; gap: 6px; align-items: center; }
-/* Action buttons split the row evenly, so the Remove button lines up under Copy.
-   min-width:0 lets them shrink to an even half instead of their text width. */
-.card-actions .foil-btn, .card-actions .add-btn, .card-actions .remove-btn { flex: 1; min-width: 0; }
-/* Price on the left, Copy button on the right — two equal tracks, so the Copy
-   button is the same size as the action button and lines up right above it. */
-.card-price-row { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 6px; }
-.card-price-row .card-price { min-width: 0; }
-.card-price-row .copy-name-btn { min-width: 0; }
+/* Price sits inline in the meta line (No. · rarity · price); it keeps its own
+   accent colour and weight so it stands out from the dimmed meta text. */
+.card-price { color: var(--accent-hi); font-weight: 700; font-size: 0.85rem; text-transform: none; }
+.card-actions { margin-top: auto; display: flex; gap: 6px; align-items: stretch; }
+/* Compact icon buttons on the card: square-ish, icon centered. */
+.card-actions .btn-icon { padding: 6px; }
+.card-actions .btn-icon svg { width: 16px; height: 16px; }
+/* Owned card: four equal icon buttons across the row (foil · link · copy · remove). */
+.card-actions-icons .btn { flex: 1; min-width: 0; }
+/* Foil active: highlighted, filled star. */
+.foil-btn.foil-on { color: var(--accent-hi); border-color: var(--accent); }
+.foil-btn.foil-on svg { fill: currentColor; }
+.remove-btn:hover { color: var(--red); border-color: var(--red); }
+/* Missing / edition card: compact icon buttons + a wide add/remove toggle. */
+.card-actions .own-toggle { flex: 1; min-width: 0; display: flex; }
+.card-actions .own-toggle .btn { flex: 1; min-width: 0; }
 .qty-controls { display: flex; align-items: center; gap: 6px; }
 .qty-controls button {
   width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
