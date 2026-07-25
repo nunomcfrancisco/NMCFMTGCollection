@@ -865,7 +865,7 @@ function collectionCardEl(entry) {
       ${priceRowHtml(unit)}
       <div class="card-actions">
         <button class="btn btn-sm foil-btn">${foil ? "★ Foil" : "☆ Foil"}</button>
-        <button class="btn btn-sm remove-btn">🗑 Remove</button>
+        <button class="btn btn-sm remove-btn" aria-label="Remove" title="Remove">🗑</button>
       </div>
     </div>`;
 
