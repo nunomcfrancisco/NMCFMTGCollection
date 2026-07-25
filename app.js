@@ -797,9 +797,13 @@ function renderCollectionDetail() {
   grid.appendChild(frag);
 }
 
-// Markup for the little "copy the card name" button (shown on every card).
-function copyNameBtnHtml() {
-  return `<div class="card-copy"><button class="btn btn-sm copy-name-btn">⧉ Copy</button></div>`;
+// A row with the card price on the left and a "copy the card name" button on
+// the right — the Copy button lines up above the action button below it.
+function priceRowHtml(price) {
+  return `<div class="card-price-row">
+      <span class="card-price">${price ? eur(price) : "—"}</span>
+      <button class="btn btn-sm copy-name-btn">⧉ Copy</button>
+    </div>`;
 }
 // Wires the copy button: copies the card name and briefly confirms it.
 function wireCopyNameBtn(el, card) {
@@ -827,8 +831,7 @@ function collectionMissingCardEl(card) {
     </div>
     <div class="card-body">
       <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
-      <div class="card-price">${price ? eur(price) : "—"}</div>
-      ${copyNameBtnHtml()}
+      ${priceRowHtml(price)}
       <div class="card-actions"></div>
     </div>`;
 
@@ -859,11 +862,10 @@ function collectionCardEl(entry) {
     </div>
     <div class="card-body">
       <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
-      <div class="card-price">${unit ? eur(unit) : "—"}</div>
-      ${copyNameBtnHtml()}
+      ${priceRowHtml(unit)}
       <div class="card-actions">
         <button class="btn btn-sm foil-btn">${foil ? "★ Foil" : "☆ Foil"}</button>
-        <button class="btn btn-sm remove-btn" style="margin-left:auto">🗑 Remove</button>
+        <button class="btn btn-sm remove-btn">🗑 Remove</button>
       </div>
     </div>`;
 
@@ -1116,8 +1118,7 @@ function editionCardEl(card) {
     </div>
     <div class="card-body">
       <div class="card-meta">No. ${esc(card.collector_number || "?")} · ${rarityLetterHtml(card.rarity)}</div>
-      <div class="card-price">${price ? eur(price) : "—"}</div>
-      ${copyNameBtnHtml()}
+      ${priceRowHtml(price)}
       <div class="card-actions"></div>
     </div>`;
 

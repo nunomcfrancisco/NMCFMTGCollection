@@ -260,10 +260,14 @@ a { color: var(--accent-hi); }
 .rarity-mythic { color: #ff8c42; }
 .card-price { color: var(--accent-hi); font-weight: 700; font-size: 0.9rem; }
 .card-actions { margin-top: auto; display: flex; gap: 6px; align-items: center; }
-/* "Copy name" button, sits full-width just above the card's action row. */
-.card-copy { margin-top: auto; }
-.card-copy + .card-actions { margin-top: 0; }
-.copy-name-btn { width: 100%; }
+/* Action buttons split the row evenly, so the Remove button lines up under Copy.
+   min-width:0 lets them shrink to an even half instead of their text width. */
+.card-actions .foil-btn, .card-actions .add-btn, .card-actions .remove-btn { flex: 1; min-width: 0; }
+/* Price on the left, Copy button on the right — two equal tracks, so the Copy
+   button is the same size as the action button and lines up right above it. */
+.card-price-row { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 6px; }
+.card-price-row .card-price { min-width: 0; }
+.card-price-row .copy-name-btn { min-width: 0; }
 .qty-controls { display: flex; align-items: center; gap: 6px; }
 .qty-controls button {
   width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
