@@ -345,7 +345,7 @@ a { color: var(--accent-hi); }
 /* Set detail title: symbol + name side by side, at the top. */
 .set-detail-title { display: flex; align-items: center; gap: 10px; }
 .set-title-symbol {
-  width: 30px; height: 30px; flex: 0 0 auto;
+  width: 60px; height: 60px; flex: 0 0 auto;
   opacity: 1; /* static in the title — no hover/animation */
 }
 .check-inline {
