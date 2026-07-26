@@ -23,14 +23,55 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
 /* ---------- Persistence (delegated to the data layer / auth.js) ---------- */
-// Writes to the database: if the card exists in memory, upsert; otherwise remove.
+// Single-card edits (add / remove / foil toggle in the grids) are COALESCED:
+// instead of one Firestore round-trip per click, dirty card ids pile up and are
+// committed together as one batch after a short idle delay. A burst of edits
+// becomes a single write (and a single snapshot echo). Each id is resolved at
+// flush time — present in memory → upsert, absent → delete — so an add-then-
+// remove within the window collapses to nothing meaningful sent.
+const PENDING_WRITES = new Set();
+let flushTimer = null;
+let flushInFlight = Promise.resolve();
+const WRITE_DEBOUNCE_MS = 600;   // idle time before a burst is committed
+const WRITE_MAX_PENDING = 300;   // …but don't let more than this pile up
+
+// Queue a card id for the next batched write.
 function persist(id) {
   if (!window.Storage) return;
-  if (collection[id]) window.Storage.upsert(id, collection[id]);
-  else window.Storage.remove(id);
+  PENDING_WRITES.add(id);
+  if (PENDING_WRITES.size >= WRITE_MAX_PENDING) { flushWrites(); return; }
+  clearTimeout(flushTimer);
+  flushTimer = setTimeout(flushWrites, WRITE_DEBOUNCE_MS);
 }
+
+// Commit every queued single-card edit as one batch. Returns a Promise that
+// settles when the write reaches the database. Safe to call with nothing
+// pending. On failure the ids are requeued so edits aren't silently dropped.
+function flushWrites() {
+  clearTimeout(flushTimer);
+  flushTimer = null;
+  if (!PENDING_WRITES.size) return flushInFlight;
+  const ids = [...PENDING_WRITES];
+  PENDING_WRITES.clear();
+  flushInFlight = persistMany(ids).catch(() => {
+    ids.forEach((id) => PENDING_WRITES.add(id));
+    clearTimeout(flushTimer);
+    flushTimer = setTimeout(flushWrites, WRITE_DEBOUNCE_MS);
+  });
+  return flushInFlight;
+}
+
+// Flush pending edits when the page is hidden or unloaded, so a burst that
+// hasn't reached the idle delay yet isn't lost on navigation/close. Best-effort
+// on unload: the commit is fired even though it can't be awaited there.
+window.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushWrites();
+});
+window.addEventListener("pagehide", flushWrites);
+
 // Writes many cards at once (in a batch) — avoids bursts of individual
-// writes that break the Firestore SDK on large imports.
+// writes that break the Firestore SDK on large imports. Also the engine behind
+// flushWrites() above.
 function persistMany(ids) {
   if (!window.Storage) return Promise.resolve();
   if (window.Storage.commitMany) {
@@ -41,7 +82,12 @@ function persistMany(ids) {
     }
     return window.Storage.commitMany(upserts, deletes);
   }
-  ids.forEach(persist);
+  // Fallback with no batch API: write each directly. Must NOT route back through
+  // persist(), which would re-queue these ids and loop.
+  for (const id of ids) {
+    if (collection[id]) window.Storage.upsert(id, collection[id]);
+    else window.Storage.remove(id);
+  }
   return Promise.resolve();
 }
 
@@ -285,9 +331,14 @@ function makeOwnToggle(card, cardEl, actionsEl, afterToggle) {
 function addToCollection(card, foil = false, defer = false) {
   const id = card.id;
   // At most 1 copy: if it already exists, just ensure qty = 1 (and update foil).
+  // Track whether anything actually changed so we don't issue a redundant write
+  // (a full setDoc) when re-adding a card that's already owned and unchanged.
+  let changed = false;
   if (collection[id]) {
-    collection[id].qty = 1;
-    collection[id].foil = foil || collection[id].foil;
+    const e = collection[id];
+    if (e.qty !== 1) { e.qty = 1; changed = true; }
+    const newFoil = foil || e.foil;
+    if (e.foil !== newFoil) { e.foil = newFoil; changed = true; }
   } else {
     collection[id] = {
       qty: 1,
@@ -295,9 +346,10 @@ function addToCollection(card, foil = false, defer = false) {
       addedAt: Date.now(),
       card: slimCard(card),
     };
+    changed = true;
   }
   // defer = leave the write for a later batch (used in imports).
-  if (!defer) persist(id);
+  if (!defer && changed) persist(id);
 }
 
 function removeFromCollection(id) {
@@ -1229,6 +1281,7 @@ $("#clear-btn").addEventListener("click", async () => {
 
   setActionsBusy(true);
   setStatus(ACTION_STATUS, `<span class="spinner"></span>Deleting…`);
+  await flushWrites(); // commit any queued single-card edits before the bulk op
   importing = true; // prevents partial snapshots from touching the collection
   pauseSync();      // keep the listener off the cache during the bulk delete
   try {
@@ -1273,21 +1326,27 @@ $("#import-file").addEventListener("change", async (e) => {
       "Cancel = replace the current collection"
     );
 
-    // Affected ids (before + after) to write/delete in the database.
-    const affected = new Set(Object.keys(collection));
+    // Only the ids that actually change are written/deleted. A merge that adds
+    // a handful of cards into a large collection must NOT re-write every card
+    // already there: on merge that's the newly-added cards (plus any existing
+    // entry we clamp below); on replace it's every card removed or (re)written.
+    const affected = new Set();
 
     if (merge) {
       for (const [id, entry] of Object.entries(data)) {
-        if (!collection[id]) collection[id] = entry;
+        if (!collection[id]) { collection[id] = entry; affected.add(id); }
       }
     } else {
+      for (const id of Object.keys(collection)) affected.add(id); // may need delete
       collection = data;
+      for (const id of Object.keys(collection)) affected.add(id); // needs (re)write
     }
-    // Enforce the max-1-copy rule.
-    for (const entry of Object.values(collection)) {
-      if (entry && entry.qty > 1) entry.qty = 1;
+    // Enforce the max-1-copy rule. A clamped existing entry must be persisted,
+    // so add it to the write set even on a merge (otherwise the fix is memory-only).
+    for (const [id, entry] of Object.entries(collection)) {
+      if (entry && entry.qty > 1) { entry.qty = 1; affected.add(id); }
     }
-    Object.keys(collection).forEach((id) => affected.add(id));
+    await flushWrites(); // commit any queued single-card edits before the bulk op
     importing = true; // don't let partial snapshots touch the collection
     pauseSync();      // keep the listener off the cache during the bulk write
     try {
@@ -1421,6 +1480,7 @@ async function importMoxfieldCSV(text) {
     }
   }
 
+  await flushWrites(); // commit any queued single-card edits before the bulk op
   importing = true; // from here on, snapshots don't touch the collection
   pauseSync();      // …and the listener stays off the cache while we write
   try {
