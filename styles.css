@@ -339,6 +339,22 @@ a { color: var(--accent-hi); }
 }
 .set-pct { color: var(--accent-hi); font-weight: 800; font-size: 0.95rem; }
 
+/* Completed set (you own every card): highlight the whole card in gold. */
+.set-cell-complete,
+.set-cell-complete:hover {
+  border-color: #EDC967;
+  background: linear-gradient(180deg, rgba(237, 201, 103, 0.12), rgba(237, 201, 103, 0.04));
+  box-shadow: 0 0 0 1px rgba(237, 201, 103, 0.55), 0 6px 18px rgba(237, 201, 103, 0.16);
+}
+.set-cell-complete .set-name,
+.set-cell-complete .set-pct { color: #EDC967; }
+.set-cell-complete .set-symbol {
+  opacity: 1;
+  /* Recolor the black Scryfall symbol to gold (#EDC967). Filter tuned so a
+     black source resolves to exactly rgb(237,201,103). */
+  filter: brightness(0) saturate(100%) invert(80%) sepia(40%) saturate(580%) hue-rotate(350deg) brightness(102%) contrast(86%);
+}
+
 /* ===== Set detail ===== */
 .edition-detail-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .edition-title { font-size: 1.3rem; margin: 4px 0 12px; }
@@ -347,6 +363,32 @@ a { color: var(--accent-hi); }
 .set-title-symbol {
   width: 60px; height: 60px; flex: 0 0 auto;
   opacity: 1; /* static in the title — no hover/animation */
+}
+/* Collection set-detail header: elongated back button on the left of the
+   symbol, set name in the middle, and the two view options stacked on the
+   right, vertically aligned with the header. */
+.collection-detail-header {
+  display: flex;
+  align-items: stretch;   /* back button stretches to the full header height */
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+.collection-detail-header .set-detail-title {
+  margin: 0;
+  align-self: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.back-tall {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px 20px;
+  font-size: 1.05rem;
+}
+.detail-options {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: flex; flex-direction: column; justify-content: center; gap: 10px;
 }
 .check-inline {
   display: flex; align-items: center; gap: 8px;
@@ -491,6 +533,12 @@ a { color: var(--accent-hi); }
   /* Detail bar (back / filters) also as a block */
   .edition-detail-bar { gap: 8px; }
   .edition-detail-bar .rarity-filter { width: 100%; }
+
+  /* Collection detail header: back + name on the first line, the two view
+     options wrap to a full-width row underneath. */
+  .collection-detail-header { flex-wrap: wrap; gap: 10px 12px; margin-bottom: 12px; }
+  .collection-detail-header .set-detail-title { flex: 1 1 auto; }
+  .detail-options { width: 100%; margin-left: 0; gap: 8px; }
 
   /* Set stats ("You have" / "Cards in set" / "Complete") on a single
      row — by default the .stats minmax(150px) split them into two. */

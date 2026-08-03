@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" />
   <link rel="preconnect" href="https://accounts.google.com" />
-  <link rel="stylesheet" href="styles.css?v=59" />
+  <link rel="stylesheet" href="styles.css?v=60" />
   <!-- Favicon / shortcut icon: black logo on white (Chrome's "Create shortcut" uses these) -->
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=64" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=64" />
@@ -106,14 +106,21 @@
 
       <!-- Detail: your cards from a set -->
       <div id="collection-detail" hidden>
-        <!-- Set name (with symbol) at the top, before the filters -->
-        <h2 id="collection-set-title" class="edition-title set-detail-title"></h2>
-        <div class="edition-detail-bar">
-          <button id="collection-back" class="btn btn-sm" aria-label="All sets" title="All sets">◀</button>
-          <label class="check-inline">
-            <input type="checkbox" id="collection-show-missing" />
-            Show missing cards
-          </label>
+        <!-- Header: elongated back button (left), set symbol + name, and the
+             two view options stacked on the right. -->
+        <div class="collection-detail-header">
+          <button id="collection-back" class="btn back-tall" aria-label="All sets" title="All sets">◀</button>
+          <h2 id="collection-set-title" class="edition-title set-detail-title"></h2>
+          <div class="detail-options">
+            <label class="check-inline">
+              <input type="checkbox" id="collection-show-missing" />
+              Show missing cards
+            </label>
+            <label class="check-inline">
+              <input type="checkbox" id="collection-show-only-missing" />
+              Show only missing cards
+            </label>
+          </div>
         </div>
         <!-- Filters for the CARDS view (independent of the sets filter) -->
         <div class="collection-toolbar">
@@ -219,7 +226,7 @@
   </footer>
 
   <script src="config.js?v=58"></script>
-  <script src="app.js?v=59"></script>
+  <script src="app.js?v=60"></script>
   <script src="auth.js?v=58" type="module"></script>
 
   <!-- PWA: register the service worker so the app is installable and works offline -->
