@@ -110,10 +110,20 @@ window.applyRemoteCollection = (data) => {
   for (const entry of Object.values(collection)) {
     if (entry && entry.qty > 1) entry.qty = 1;
   }
-  renderCollection();
-  // Update the sets view (set grid and/or the open set detail).
-  if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
-  if (editionsState.cards.length && !$("#edition-detail").hidden) renderEdition();
+  // This is a background sync from the database (e.g. your own write echoing
+  // back after adding a card). It must NOT move the page, so preserve the
+  // scroll position across the re-render.
+  const y = window.scrollY;
+  keepScroll = true;
+  try {
+    renderCollection();
+    // Update the sets view (set grid and/or the open set detail).
+    if (editionsState.setsLoaded && !$("#edition-picker").hidden) renderEditionPicker();
+    if (editionsState.cards.length && !$("#edition-detail").hidden) renderEdition();
+  } finally {
+    keepScroll = false;
+  }
+  window.scrollTo(0, y);
 };
 
 // Formatters created once — building an Intl.NumberFormat is expensive and
