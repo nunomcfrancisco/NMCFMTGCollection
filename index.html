@@ -89,10 +89,17 @@
 
       <!-- Grid of sets you have in your collection (symbol + name + %) -->
       <div id="collection-picker">
-        <!-- Filter for the SETS view (independent of the cards filter) -->
+        <!-- Filter + sort for the SETS view (independent of the cards filter) -->
         <div class="collection-toolbar">
           <input id="collection-set-filter" type="search"
                  placeholder="Filter sets…" aria-label="Filter collection sets" />
+          <select id="collection-sets-sort" aria-label="Sort sets">
+            <option value="released" selected>Released (newest)</option>
+            <option value="name">Name (A→Z)</option>
+            <option value="name-desc">Name (Z→A)</option>
+            <option value="pct-desc">Complete (high→low)</option>
+            <option value="pct">Complete (low→high)</option>
+          </select>
         </div>
         <div id="collection-sets" class="set-grid"></div>
       </div>
