@@ -642,6 +642,7 @@ $("#collection-card-filter").addEventListener("input", debounce(() => renderColl
 $("#collection-sort").addEventListener("change", renderCollection);
 $("#collection-rarity").addEventListener("change", renderCollection);
 $("#collection-show-missing").addEventListener("change", renderCollection);
+$("#collection-show-only-missing").addEventListener("change", renderCollection);
 $("#collection-back").addEventListener("click", () => {
   collectionView.setCode = null;
   renderCollection();
@@ -669,10 +670,10 @@ function renderCollection() {
   }
 
   // If the chosen set no longer has cards (e.g. you removed the last one), go back to the grid.
-  // Exception: with "Show missing cards" active it still makes sense to view the set
+  // Exception: with either "missing" view active it still makes sense to stay
   // (you can add cards back from there).
   if (collectionView.setCode && !ownedInSet(collectionView.setCode) &&
-      !$("#collection-show-missing").checked) {
+      !$("#collection-show-missing").checked && !$("#collection-show-only-missing").checked) {
     collectionView.setCode = null;
   }
 
@@ -765,8 +766,11 @@ function renderCollectionPicker() {
     const pct = total ? Math.round((owned / total) * 100) : null;
     const name = info[code].name;
 
+    // A set counts as complete only when you actually own every card
+    // (not just a rounded 100%, e.g. 199/200 rounds to 100 but isn't done).
+    const complete = total > 0 && owned >= total;
     const cell = document.createElement("button");
-    cell.className = "set-cell";
+    cell.className = complete ? "set-cell set-cell-complete" : "set-cell";
     cell.title = pct === null
       ? `${name} — ${owned} card(s)`
       : `${name} — ${owned}/${total} (${pct}%)`;
@@ -777,6 +781,7 @@ function renderCollectionPicker() {
     cell.addEventListener("click", () => {
       collectionView.setCode = code;
       $("#collection-show-missing").checked = false; // default: only owned cards
+      $("#collection-show-only-missing").checked = false;
       // Enters the set without inherited card filters (otherwise the grid could
       // open empty because of an old search). The sets filter stays intact.
       $("#collection-card-filter").value = "";
@@ -822,10 +827,13 @@ function renderCollectionDetail() {
   const sort = $("#collection-sort").value;
   const grid = $("#collection-grid");
   const showMissing = $("#collection-show-missing").checked;
+  const onlyMissing = $("#collection-show-only-missing").checked;
+  // Both modes need the full set list from Scryfall: "Show missing cards"
+  // shows every card (missing ones grayed out), "Show only missing cards"
+  // shows just the ones you don't have yet.
+  const needFullSet = showMissing || onlyMissing;
 
-  // "Show missing cards" mode: shows ALL cards of the set (the missing ones
-  // appear grayed out with an add button). Needs the full list from Scryfall.
-  if (showMissing) {
+  if (needFullSet) {
     if (!setCardsCache[code]) {
       grid.innerHTML = "";
       setStatus("#collection-status", `<span class="spinner"></span>Loading set cards…`);
@@ -834,12 +842,15 @@ function renderCollectionDetail() {
         .catch((err) => {
           setStatus("#collection-status", `Failed to load cards: ${esc(err.message)}`, true);
           $("#collection-show-missing").checked = false;
+          $("#collection-show-only-missing").checked = false;
           if (collectionView.setCode === code) renderCollection();
         });
       return;
     }
 
     let cards = setCardsCache[code].slice();
+    // "Show only missing cards": drop the ones already in the collection.
+    if (onlyMissing) cards = cards.filter((c) => !collection[c.id]);
     if (filter) cards = cards.filter((c) => c.name.toLowerCase().includes(filter));
     if (rarity) cards = cards.filter((c) => c.rarity === rarity);
     // Price and date computed ONCE per card (the sort would call this on every
@@ -865,7 +876,9 @@ function renderCollectionDetail() {
     });
 
     const missing = cards.filter((c) => !collection[c.id]).length;
-    setStatus("#collection-status", `${cards.length} card(s) · ${missing} missing.`);
+    setStatus("#collection-status", onlyMissing
+      ? `${cards.length} missing card(s).`
+      : `${cards.length} card(s) · ${missing} missing.`);
 
     const frag = document.createDocumentFragment();
     cards.forEach((c) => frag.appendChild(
