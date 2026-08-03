@@ -485,6 +485,8 @@ a { color: var(--accent-hi); }
   /* Sort + rarity side by side */
   #collection-sort,
   #collection-rarity { width: 100%; }
+  /* The sets picker has a single sort select — give it the whole row */
+  #collection-sets-sort { grid-column: 1 / -1; width: 100%; }
 
   /* Detail bar (back / filters) also as a block */
   .edition-detail-bar { gap: 8px; }

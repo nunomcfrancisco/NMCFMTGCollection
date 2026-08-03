@@ -384,7 +384,7 @@ function toggleFoil(id) {
   if (!collection[id]) return;
   collection[id].foil = !collection[id].foil;
   persist(id);
-  renderCollection();
+  rerenderKeepScroll();
 }
 
 /* ============================================================
@@ -608,10 +608,26 @@ function animateRarityChart(el) {
 // Collection view state: setCode = null → set grid; otherwise → detail.
 let collectionView = { setCode: null };
 
+// When true, a re-render must NOT jump to the top of the page: it keeps the
+// current scroll position (used after add/remove/foil, so adding a card doesn't
+// scroll the page up). Navigation (opening a set, going back, switching tab)
+// leaves this false, so those still start at the top.
+let keepScroll = false;
+
+// Re-render the collection keeping the current scroll position.
+function rerenderKeepScroll() {
+  const y = window.scrollY;
+  keepScroll = true;
+  try { renderCollection(); }
+  finally { keepScroll = false; }
+  window.scrollTo(0, y);
+}
+
 // The two text filters are independent: one filters the SETS grid, the other
 // the CARDS within a set. Typing in one doesn't affect the other.
 // Debounce: typing redraws the whole grid; without this it would be per keystroke.
 $("#collection-set-filter").addEventListener("input", debounce(() => renderCollection(), 150));
+$("#collection-sets-sort").addEventListener("change", renderCollection);
 $("#collection-card-filter").addEventListener("input", debounce(() => renderCollection(), 150));
 $("#collection-sort").addEventListener("change", renderCollection);
 $("#collection-rarity").addEventListener("change", renderCollection);
@@ -695,10 +711,16 @@ function renderCollectionPicker() {
   const info = Object.create(null);
   for (const c of Object.keys(bySet)) {
     const name = setDisplayName(c, bySet[c][0]);
+    const meta = setsByCode && setsByCode[c];
+    const owned = bySet[c].length;
+    const total = meta ? meta.card_count : 0;
     info[c] = {
       name,
       lower: name.toLowerCase(),
-      released: (setsByCode && setsByCode[c] && setsByCode[c].released_at) || "",
+      released: (meta && meta.released_at) || "",
+      // Completion fraction; -1 when the set metadata (card count) isn't loaded
+      // yet, so those sort last and settle once ensureSets() re-renders.
+      pct: total ? owned / total : -1,
     };
   }
 
@@ -706,9 +728,18 @@ function renderCollectionPicker() {
   if (filter) {
     codes = codes.filter((c) => info[c].lower.includes(filter) || c.toLowerCase().includes(filter));
   }
+  const sort = $("#collection-sets-sort").value;
+  const byName = (a, b) => nameCollator.compare(info[a].name, info[b].name);
   codes.sort((a, b) => {
-    if (info[a].released !== info[b].released) return info[b].released < info[a].released ? -1 : 1;
-    return nameCollator.compare(info[a].name, info[b].name);
+    switch (sort) {
+      case "name": return byName(a, b);
+      case "name-desc": return byName(b, a);
+      case "pct-desc": return (info[b].pct - info[a].pct) || byName(a, b);
+      case "pct": return (info[a].pct - info[b].pct) || byName(a, b);
+      default: // "released": newest first, then by name
+        if (info[a].released !== info[b].released) return info[b].released < info[a].released ? -1 : 1;
+        return byName(a, b);
+    }
   });
 
   $("#collection-status").innerHTML = filter
@@ -752,7 +783,9 @@ function renderCollectionPicker() {
 function renderCollectionDetail() {
   $("#collection-picker").hidden = true;
   $("#collection-detail").hidden = false;
-  window.scrollTo(0, 0);
+  // Only jump to the top when navigating into the set, not on in-place
+  // re-renders after add/remove/foil (those keep the scroll position).
+  if (!keepScroll) window.scrollTo(0, 0);
 
   const code = collectionView.setCode;
   const meta = setsByCode && setsByCode[code];
@@ -918,7 +951,7 @@ function collectionMissingCardEl(card) {
 
   wireCopyNameBtn(el, card);
   wireLinkBtn(el, card);
-  makeOwnToggle(card, el, el.querySelector(".own-toggle"), () => renderCollection())();
+  makeOwnToggle(card, el, el.querySelector(".own-toggle"), () => rerenderKeepScroll())();
 
   const imgWrap = el.querySelector(".card-img-wrap");
   wireCardImageLoader(imgWrap);
@@ -953,7 +986,7 @@ function collectionCardEl(entry) {
   el.querySelector(".foil-btn").addEventListener("click", () => toggleFoil(card.id));
   el.querySelector(".remove-btn").addEventListener("click", () => {
     removeFromCollection(card.id);
-    renderCollection();
+    rerenderKeepScroll();
   });
   const imgWrap = el.querySelector(".card-img-wrap");
   wireCardImageLoader(imgWrap);
@@ -1206,8 +1239,15 @@ function editionCardEl(card) {
   wireLinkBtn(el, card);
   makeOwnToggle(card, el, el.querySelector(".own-toggle"), () => {
     // If the "missing only" filter is active, rebuild the list; otherwise just the stats.
-    if ($("#edition-missing-only").checked) renderEdition();
-    else refreshEditionStats();
+    // Rebuilding clears the grid (which would scroll the page to the top), so
+    // keep the current scroll position after adding/removing a card.
+    if ($("#edition-missing-only").checked) {
+      const y = window.scrollY;
+      renderEdition();
+      window.scrollTo(0, y);
+    } else {
+      refreshEditionStats();
+    }
   })();
 
   const imgWrap = el.querySelector(".card-img-wrap");
