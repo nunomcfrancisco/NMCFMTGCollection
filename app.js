@@ -1177,7 +1177,10 @@ function openEdition(set) {
   $("#edition-picker").hidden = true;
   $("#edition-detail").hidden = false;
   window.scrollTo(0, 0);
-  $("#edition-title").textContent = set.name;
+  // Symbol + name, matching the collection set-detail header.
+  $("#edition-title").innerHTML =
+    (set.icon_svg_uri ? `<img class="set-symbol set-title-symbol" src="${esc(set.icon_svg_uri)}" alt="" />` : "") +
+    `<span>${esc(set.name)}</span>`;
   $("#edition-missing-only").checked = false;
   $("#edition-rarity").value = "";
   $("#edition-card-search").value = "";

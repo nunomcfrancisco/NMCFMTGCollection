@@ -356,7 +356,6 @@ a { color: var(--accent-hi); }
 }
 
 /* ===== Set detail ===== */
-.edition-detail-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .edition-title { font-size: 1.3rem; margin: 4px 0 12px; }
 /* Set detail title: symbol + name side by side, at the top. */
 .set-detail-title { display: flex; align-items: center; gap: 10px; }
@@ -395,11 +394,6 @@ a { color: var(--accent-hi); }
   color: var(--text-dim); font-size: 0.9rem; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .check-inline input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
-.rarity-filter {
-  padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border);
-  background: var(--bg-elev); color: var(--text); font-size: 0.9rem; cursor: pointer;
-}
-.rarity-filter:focus { outline: none; border-color: var(--accent); }
 
 /* ===== Collection toolbar ===== */
 .collection-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
@@ -529,10 +523,6 @@ a { color: var(--accent-hi); }
   #collection-rarity { width: 100%; }
   /* The sets picker has a single sort select — give it the whole row */
   #collection-sets-sort { grid-column: 1 / -1; width: 100%; }
-
-  /* Detail bar (back / filters) also as a block */
-  .edition-detail-bar { gap: 8px; }
-  .edition-detail-bar .rarity-filter { width: 100%; }
 
   /* Collection detail header: back + name on the first line, the two view
      options wrap to a full-width row underneath. */

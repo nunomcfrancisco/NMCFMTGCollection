@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" />
   <link rel="preconnect" href="https://accounts.google.com" />
-  <link rel="stylesheet" href="styles.css?v=60" />
+  <link rel="stylesheet" href="styles.css?v=61" />
   <!-- Favicon / shortcut icon: black logo on white (Chrome's "Create shortcut" uses these) -->
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=64" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=64" />
@@ -61,22 +61,26 @@
 
       <!-- Detail of the chosen set -->
       <div id="edition-detail" hidden>
-        <div class="edition-detail-bar">
-          <button id="edition-back" class="btn btn-sm" aria-label="All sets" title="All sets">◀</button>
-          <label class="check-inline">
-            <input type="checkbox" id="edition-missing-only" />
-            Show only missing cards
-          </label>
-          <select id="edition-rarity" class="rarity-filter" aria-label="Filter by rarity">
+        <div class="collection-detail-header">
+          <button id="edition-back" class="btn back-tall" aria-label="All sets" title="All sets">◀</button>
+          <h2 id="edition-title" class="edition-title set-detail-title"></h2>
+          <div class="detail-options">
+            <label class="check-inline">
+              <input type="checkbox" id="edition-missing-only" />
+              Show only missing cards
+            </label>
+          </div>
+        </div>
+        <div class="collection-toolbar">
+          <input id="edition-card-search" type="search" placeholder="Filter cards…" aria-label="Filter set cards" />
+          <select id="edition-rarity" aria-label="Filter by rarity">
             <option value="">All rarities</option>
             <option value="common">Common</option>
             <option value="uncommon">Uncommon</option>
             <option value="rare">Rare</option>
             <option value="mythic">Mythic</option>
           </select>
-          <input id="edition-card-search" type="search" placeholder="Search card…" aria-label="Search card by name" />
         </div>
-        <h2 id="edition-title" class="edition-title"></h2>
         <div id="edition-stats" class="stats"></div>
         <div id="edition-grid" class="card-grid"></div>
       </div>
@@ -227,7 +231,7 @@
   </footer>
 
   <script src="config.js?v=58"></script>
-  <script src="app.js?v=60"></script>
+  <script src="app.js?v=61"></script>
   <script src="auth.js?v=58" type="module"></script>
 
   <!-- PWA: register the service worker so the app is installable and works offline -->
