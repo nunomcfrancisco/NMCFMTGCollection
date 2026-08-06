@@ -1204,7 +1204,6 @@ async function loadEditionCards(code) {
   editionsState.setCode = code;
   editionsState.cards = [];
   $("#edition-grid").innerHTML = "";
-  $("#edition-stats").innerHTML = "";
   if (!code) return;
 
   editionsState.loading = true;
@@ -1228,14 +1227,6 @@ function renderEdition() {
   const grid = $("#edition-grid");
   const cards = editionsState.cards;
   if (!cards.length) return;
-
-  const owned = cards.filter((c) => collection[c.id]).length;
-  const total = cards.length;
-  const pct = total ? Math.round((owned / total) * 100) : 0;
-  $("#edition-stats").innerHTML = `
-    <div class="stat"><div class="stat-label">Cards in set</div><div class="stat-value">${numFmt.format(total)}</div></div>
-    <div class="stat"><div class="stat-label">You have</div><div class="stat-value">${numFmt.format(owned)}</div></div>
-    <div class="stat"><div class="stat-label">Complete</div><div class="stat-value">${pct}%</div></div>`;
 
   const rarity = $("#edition-rarity").value;
   const missingOnly = $("#edition-missing-only").checked;
@@ -1272,15 +1263,13 @@ function editionCardEl(card) {
   wireCopyNameBtn(el, card);
   wireLinkBtn(el, card);
   makeOwnToggle(card, el, el.querySelector(".own-toggle"), () => {
-    // If the "missing only" filter is active, rebuild the list; otherwise just the stats.
-    // Rebuilding clears the grid (which would scroll the page to the top), so
-    // keep the current scroll position after adding/removing a card.
+    // If the "missing only" filter is active, rebuild the list so the card
+    // drops out once owned. Rebuilding clears the grid (which would scroll the
+    // page to the top), so keep the current scroll position.
     if ($("#edition-missing-only").checked) {
       const y = window.scrollY;
       renderEdition();
       window.scrollTo(0, y);
-    } else {
-      refreshEditionStats();
     }
   })();
 
@@ -1289,19 +1278,6 @@ function editionCardEl(card) {
   wireImagePreview(imgWrap, card);
 
   return el;
-}
-
-function refreshEditionStats() {
-  const cards = editionsState.cards;
-  if (!cards.length) return;
-  const owned = cards.filter((c) => collection[c.id]).length;
-  const total = cards.length;
-  const pct = total ? Math.round((owned / total) * 100) : 0;
-  const values = $("#edition-stats").querySelectorAll(".stat-value");
-  if (values.length === 3) {
-    values[1].textContent = numFmt.format(owned);
-    values[2].textContent = `${pct}%`;
-  }
 }
 
 /* ============================================================
