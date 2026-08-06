@@ -1090,12 +1090,16 @@ async function ensureSets() {
       for (const s of list) map[s.code] = s;
       setsByCode = map;
       // Also feeds the Sets grid (only sets with real cards).
-      // Excludes "Art Series" (art only) and token sets (set_type "token") —
-      // none of those are playable cards for the collection.
+      // Excludes "Art Series" (art only) and non-playable set types
+      // (token, minigame, memorabilia, alchemy) — none of those are
+      // playable cards for the collection.
+      const EXCLUDED_SET_TYPES = new Set([
+        "token", "minigame", "memorabilia", "alchemy",
+      ]);
       editionsState.sets = list
         .filter((s) =>
           s.card_count > 0 && !s.digital &&
-          s.set_type !== "token" && !/art series/i.test(s.name))
+          !EXCLUDED_SET_TYPES.has(s.set_type) && !/art series/i.test(s.name))
         .sort((a, b) => (b.released_at || "").localeCompare(a.released_at || ""));
       editionsState.setsLoaded = true;
       return map;
@@ -1176,6 +1180,7 @@ function openEdition(set) {
   $("#edition-title").textContent = set.name;
   $("#edition-missing-only").checked = false;
   $("#edition-rarity").value = "";
+  $("#edition-card-search").value = "";
   loadEditionCards(set.code);
 }
 
@@ -1190,6 +1195,7 @@ $("#edition-back").addEventListener("click", () => {
 });
 $("#edition-missing-only").addEventListener("change", renderEdition);
 $("#edition-rarity").addEventListener("change", renderEdition);
+$("#edition-card-search").addEventListener("input", debounce(() => renderEdition(), 150));
 
 async function loadEditionCards(code) {
   editionsState.setCode = code;
@@ -1230,9 +1236,11 @@ function renderEdition() {
 
   const rarity = $("#edition-rarity").value;
   const missingOnly = $("#edition-missing-only").checked;
+  const search = $("#edition-card-search").value.trim().toLowerCase();
   let list = cards;
   if (rarity) list = list.filter((c) => c.rarity === rarity);
   if (missingOnly) list = list.filter((c) => !collection[c.id]);
+  if (search) list = list.filter((c) => c.name.toLowerCase().includes(search));
 
   const frag = document.createDocumentFragment();
   list.forEach((card) => frag.appendChild(editionCardEl(card)));
