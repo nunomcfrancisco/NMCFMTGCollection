@@ -1181,7 +1181,6 @@ function openEdition(set) {
   $("#edition-title").innerHTML =
     (set.icon_svg_uri ? `<img class="set-symbol set-title-symbol" src="${esc(set.icon_svg_uri)}" alt="" />` : "") +
     `<span>${esc(set.name)}</span>`;
-  $("#edition-missing-only").checked = false;
   $("#edition-rarity").value = "";
   $("#edition-card-search").value = "";
   loadEditionCards(set.code);
@@ -1196,7 +1195,6 @@ $("#edition-back").addEventListener("click", () => {
   renderEditionPicker(); // reflects cards added/removed in this set
   window.scrollTo(0, 0);
 });
-$("#edition-missing-only").addEventListener("change", renderEdition);
 $("#edition-rarity").addEventListener("change", renderEdition);
 $("#edition-card-search").addEventListener("input", debounce(() => renderEdition(), 150));
 
@@ -1229,11 +1227,9 @@ function renderEdition() {
   if (!cards.length) return;
 
   const rarity = $("#edition-rarity").value;
-  const missingOnly = $("#edition-missing-only").checked;
   const search = $("#edition-card-search").value.trim().toLowerCase();
   let list = cards;
   if (rarity) list = list.filter((c) => c.rarity === rarity);
-  if (missingOnly) list = list.filter((c) => !collection[c.id]);
   if (search) list = list.filter((c) => c.name.toLowerCase().includes(search));
 
   const frag = document.createDocumentFragment();
@@ -1262,16 +1258,9 @@ function editionCardEl(card) {
 
   wireCopyNameBtn(el, card);
   wireLinkBtn(el, card);
-  makeOwnToggle(card, el, el.querySelector(".own-toggle"), () => {
-    // If the "missing only" filter is active, rebuild the list so the card
-    // drops out once owned. Rebuilding clears the grid (which would scroll the
-    // page to the top), so keep the current scroll position.
-    if ($("#edition-missing-only").checked) {
-      const y = window.scrollY;
-      renderEdition();
-      window.scrollTo(0, y);
-    }
-  })();
+  // No afterToggle: the grid isn't filtered by ownership, so marking a card
+  // owned/not just updates that card in place.
+  makeOwnToggle(card, el, el.querySelector(".own-toggle"))();
 
   const imgWrap = el.querySelector(".card-img-wrap");
   wireCardImageLoader(imgWrap);
