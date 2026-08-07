@@ -384,6 +384,11 @@ a { color: var(--accent-hi); }
   padding: 6px 20px;
   font-size: 1.05rem;
 }
+/* Add-page set detail: pin the back button at the top-left (fixed height,
+   matching the set symbol) so a long set name just wraps onto more lines
+   instead of stretching the button taller. */
+#edition-detail .collection-detail-header { align-items: flex-start; }
+#edition-detail .back-tall { height: 60px; }
 .detail-options {
   flex: 0 0 auto;
   margin-left: auto;
