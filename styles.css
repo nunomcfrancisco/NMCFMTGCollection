@@ -531,6 +531,12 @@ a { color: var(--accent-hi); }
   /* Add-page set detail has a lone rarity select — give it the whole row */
   #edition-rarity { grid-column: 1 / -1; width: 100%; }
 
+  /* Add-page set detail: keep the back button fixed and let a long set name
+     wrap tidily beside it — smaller title + symbol so it stays compact. */
+  #edition-detail .set-detail-title { font-size: 1.05rem; line-height: 1.2; gap: 8px; }
+  #edition-detail .set-title-symbol { width: 44px; height: 44px; }
+  #edition-detail .back-tall { height: 44px; padding: 6px 16px; }
+
   /* Collection detail header: back + name on the first line, the two view
      options wrap to a full-width row underneath. */
   .collection-detail-header { flex-wrap: wrap; gap: 10px 12px; margin-bottom: 12px; }
