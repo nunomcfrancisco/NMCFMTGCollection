@@ -532,7 +532,10 @@ a { color: var(--accent-hi); }
   #edition-rarity { grid-column: 1 / -1; width: 100%; }
 
   /* Add-page set detail: keep the back button fixed and let a long set name
-     wrap tidily beside it — smaller title + symbol so it stays compact. */
+     wrap tidily beside it — smaller title + symbol so it stays compact.
+     No wrap here (unlike the collection header, this one has no right-side
+     options) so the name stays next to the button instead of dropping below. */
+  #edition-detail .collection-detail-header { flex-wrap: nowrap; }
   #edition-detail .set-detail-title { font-size: 1.05rem; line-height: 1.2; gap: 8px; }
   #edition-detail .set-title-symbol { width: 44px; height: 44px; }
   #edition-detail .back-tall { height: 44px; padding: 6px 16px; }
