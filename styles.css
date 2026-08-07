@@ -523,6 +523,8 @@ a { color: var(--accent-hi); }
   #collection-rarity { width: 100%; }
   /* The sets picker has a single sort select — give it the whole row */
   #collection-sets-sort { grid-column: 1 / -1; width: 100%; }
+  /* Add-page set detail has a lone rarity select — give it the whole row */
+  #edition-rarity { grid-column: 1 / -1; width: 100%; }
 
   /* Collection detail header: back + name on the first line, the two view
      options wrap to a full-width row underneath. */
