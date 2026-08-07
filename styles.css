@@ -384,11 +384,13 @@ a { color: var(--accent-hi); }
   padding: 6px 20px;
   font-size: 1.05rem;
 }
-/* Add-page set detail: pin the back button at the top-left (fixed height,
-   matching the set symbol) so a long set name just wraps onto more lines
-   instead of stretching the button taller. */
-#edition-detail .collection-detail-header { align-items: flex-start; }
-#edition-detail .back-tall { height: 60px; }
+/* Set detail (add + collection): pin the back button at the top-left (fixed
+   height, matching the set symbol) so a long set name just wraps onto more
+   lines instead of stretching the button taller. */
+#edition-detail .collection-detail-header,
+#collection-detail .collection-detail-header { align-items: flex-start; }
+#edition-detail .back-tall,
+#collection-detail .back-tall { height: 60px; }
 .detail-options {
   flex: 0 0 auto;
   margin-left: auto;
@@ -536,9 +538,15 @@ a { color: var(--accent-hi); }
      No wrap here (unlike the collection header, this one has no right-side
      options) so the name stays next to the button instead of dropping below. */
   #edition-detail .collection-detail-header { flex-wrap: nowrap; }
-  #edition-detail .set-detail-title { font-size: 1.05rem; line-height: 1.2; gap: 8px; }
-  #edition-detail .set-title-symbol { width: 44px; height: 44px; }
-  #edition-detail .back-tall { height: 44px; padding: 6px 16px; }
+  #edition-detail .set-detail-title,
+  #collection-detail .set-detail-title { font-size: 1.05rem; line-height: 1.2; gap: 8px; }
+  #edition-detail .set-title-symbol,
+  #collection-detail .set-title-symbol { width: 44px; height: 44px; }
+  #edition-detail .back-tall,
+  #collection-detail .back-tall { height: 44px; padding: 6px 16px; }
+  /* Keep the set name beside the back button; the view options still drop to
+     their own full-width row below (they carry width:100%). */
+  #collection-detail .set-detail-title { flex: 1 1 auto; min-width: 0; }
 
   /* Collection detail header: back + name on the first line, the two view
      options wrap to a full-width row underneath. */
