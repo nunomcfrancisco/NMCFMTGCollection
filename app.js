@@ -828,7 +828,7 @@ function renderCollectionDetail() {
   const grid = $("#collection-grid");
   const showMissing = $("#collection-show-missing").checked;
   const onlyMissing = $("#collection-show-only-missing").checked;
-  // Both modes need the full set list from Scryfall: "Show missing cards"
+  // Both modes need the full set list from Scryfall: "Show all cards"
   // shows every card (missing ones grayed out), "Show only missing cards"
   // shows just the ones you don't have yet.
   const needFullSet = showMissing || onlyMissing;
