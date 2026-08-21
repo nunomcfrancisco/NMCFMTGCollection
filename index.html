@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
   <link rel="preconnect" href="https://apis.google.com" />
   <link rel="preconnect" href="https://accounts.google.com" />
-  <link rel="stylesheet" href="styles.css?v=66" />
+  <link rel="stylesheet" href="styles.css?v=67" />
   <!-- Favicon / shortcut icon: black logo on white (Chrome's "Create shortcut" uses these) -->
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=64" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=64" />
@@ -52,6 +52,15 @@
   <main class="container">
     <!-- ===== VIEW: SETS ===== -->
     <section id="view-editions" class="view">
+      <!-- Search any card by name and add any of its versions -->
+      <div id="card-search">
+        <p class="hint">Search a card by name to see every version (across all sets) and add any of them to your collection.</p>
+        <input id="card-search-input" type="search" placeholder="Search a card by name…" aria-label="Search a card by name" />
+        <div id="card-search-status" class="status" aria-live="polite"></div>
+        <div id="card-search-results" class="card-grid"></div>
+        <div class="card-search-divider"><span>or pick a set below</span></div>
+      </div>
+
       <!-- Set picker (grid of symbols) -->
       <div id="edition-picker">
         <p class="hint">Pick a set by its symbol. The percentage shows how many cards of that set you already have.</p>
@@ -224,7 +233,7 @@
   </footer>
 
   <script src="config.js?v=58"></script>
-  <script src="app.js?v=63"></script>
+  <script src="app.js?v=64"></script>
   <script src="auth.js?v=58" type="module"></script>
 
   <!-- PWA: register the service worker so the app is installable and works offline -->
