@@ -1174,6 +1174,7 @@ function renderEditionPicker() {
 }
 
 function openEdition(set) {
+  $("#card-search").hidden = true;
   $("#edition-picker").hidden = true;
   $("#edition-detail").hidden = false;
   window.scrollTo(0, 0);
@@ -1189,6 +1190,7 @@ function openEdition(set) {
 $("#edition-search").addEventListener("input", debounce(() => renderEditionPicker(), 150));
 $("#edition-back").addEventListener("click", () => {
   $("#edition-detail").hidden = true;
+  $("#card-search").hidden = false;
   $("#edition-picker").hidden = false;
   editionsState.setCode = "";
   editionsState.cards = [];
@@ -1268,6 +1270,81 @@ function editionCardEl(card) {
 
   return el;
 }
+
+/* ============================================================
+   ADD VIEW — search a card by name and add any of its versions
+   ------------------------------------------------------------
+   Independent of the set picker: type a name and Scryfall returns every
+   printing (unique:prints) of the cards that match, grouped by name so all
+   versions of the same card sit together. Each result reuses editionCardEl,
+   so the same +Add / Remove toggle, price, Cardmarket link and preview work.
+   ============================================================ */
+const cardSearchState = { query: "", seq: 0 };
+
+// All printings of the cards matching `name`, grouped by name (A→Z).
+async function fetchCardVersions(name) {
+  let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent(`${name} unique:prints`)}&order=name&dir=asc`;
+  const all = [];
+  while (url) {
+    const res = await fetch(url);
+    if (res.status === 404) break; // no matches
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    all.push(...data.data);
+    url = data.has_more ? data.next_page : null;
+    if (all.length >= 400) break; // safety cap for very common words
+  }
+  return all;
+}
+
+// A search result: an edition card with the set name added, so different
+// printings of the same card are easy to tell apart.
+function searchCardEl(card) {
+  const el = editionCardEl(card);
+  const body = el.querySelector(".card-body");
+  const meta = el.querySelector(".card-meta");
+  if (body && meta) {
+    const setLine = document.createElement("div");
+    setLine.className = "card-set-line";
+    setLine.textContent = card.set_name || (card.set ? card.set.toUpperCase() : "");
+    body.insertBefore(setLine, meta);
+  }
+  return el;
+}
+
+async function runCardSearch() {
+  const name = $("#card-search-input").value.trim();
+  cardSearchState.query = name;
+  const seq = ++cardSearchState.seq; // only the latest search may render
+  const results = $("#card-search-results");
+
+  if (!name) {
+    results.innerHTML = "";
+    setStatus("#card-search-status", "");
+    return;
+  }
+
+  setStatus("#card-search-status", `<span class="spinner"></span>Searching…`);
+  results.innerHTML = "";
+  try {
+    const cards = await fetchCardVersions(name);
+    if (seq !== cardSearchState.seq) return; // superseded by a newer search
+    if (!cards.length) {
+      setStatus("#card-search-status", `No cards found for “${esc(name)}”.`);
+      return;
+    }
+    setStatus("#card-search-status",
+      `${cards.length} version${cards.length === 1 ? "" : "s"} found.`);
+    const frag = document.createDocumentFragment();
+    cards.forEach((card) => frag.appendChild(searchCardEl(card)));
+    results.appendChild(frag);
+  } catch (err) {
+    if (seq !== cardSearchState.seq) return;
+    setStatus("#card-search-status", `Search failed: ${esc(err.message)}`, true);
+  }
+}
+
+$("#card-search-input").addEventListener("input", debounce(() => runCardSearch(), 350));
 
 /* ============================================================
    EXPORT / IMPORT / DELETE (Settings view)

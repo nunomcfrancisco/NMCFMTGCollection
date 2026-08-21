@@ -306,12 +306,33 @@ a { color: var(--accent-hi); }
 .card.not-owned { opacity: 0.92; }
 
 /* ===== Sets — filter and symbol grid ===== */
-#edition-search {
+#edition-search,
+#card-search-input {
   width: 100%; margin: 4px 0 16px;
   padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--bg-elev); color: var(--text); font-size: 0.95rem;
 }
-#edition-search:focus { outline: none; border-color: var(--accent); }
+#edition-search:focus,
+#card-search-input:focus { outline: none; border-color: var(--accent); }
+
+/* ===== Add view — card-name search ===== */
+#card-search-results:not(:empty) { margin-top: 6px; }
+/* Set name on each search result, so different printings are easy to tell apart. */
+.card-set-line {
+  font-weight: 700; font-size: 0.82rem; line-height: 1.2;
+  color: var(--accent-hi); margin-bottom: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Divider between the card search and the set picker. */
+.card-search-divider {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase;
+  letter-spacing: 0.04em; margin: 22px 0 18px;
+}
+.card-search-divider::before,
+.card-search-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border);
+}
 
 .set-grid {
   display: grid;
