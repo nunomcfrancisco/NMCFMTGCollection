@@ -653,8 +653,13 @@ function renderCollection() {
   const entries = Object.values(collection);
   const unique = entries.length;
 
-  // The general statistics (Cards / Value / chart) live in the "%" view.
-  renderStats();
+  // The general statistics (Cards / Value / charts) live in the "%" view, which
+  // is hidden while browsing the collection. Re-rendering them on every
+  // add/remove/foil edit and every Firestore snapshot echo — including the
+  // whole-collection reduce and the 1.8s count-up animations on unseen
+  // elements — is wasted work. Only refresh them when that view is on screen;
+  // switching to the "%" tab renders them fresh anyway (see the tab handler).
+  if ($("#view-stats").classList.contains("active")) renderStats();
 
   if (unique === 0) {
     collectionView.setCode = null;
