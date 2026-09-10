@@ -1580,23 +1580,51 @@ async function importMoxfieldCSV(text) {
     throw new Error("This doesn't look like a Moxfield CSV (missing Edition / Collector Number columns).");
   }
 
+  // Index of cards already in the collection, keyed by set|collector_number, so
+  // we can skip them BEFORE asking Scryfall. Without this, every card in the CSV
+  // — including the ones already owned — is fetched from Scryfall just to be
+  // discarded afterwards. On a re-run of a large collection that's dozens of
+  // network round-trips over a flaky mobile connection, any one of which can
+  // fail and interrupt the import. Skipping owned cards up front means a re-run
+  // only fetches what's genuinely new, so it finishes fast and rarely breaks.
+  const ownedKeys = new Set();
+  for (const id in collection) {
+    const c = collection[id] && collection[id].card;
+    if (c && c.set && c.collector_number != null) {
+      ownedKeys.add(`${String(c.set).toLowerCase()}|${String(c.collector_number)}`);
+    }
+  }
+
   // Builds set+collector_number identifiers and remembers each one's foil and
   // name (the name lets us report which cards Scryfall couldn't find).
   const items = [];
   const foilByKey = {};
   const nameByKey = {};
-  let skippedProxy = 0;
+  let skippedProxy = 0, skippedExisting = 0;
+  const seen = new Set(); // de-dupes repeated rows within the same CSV
   for (const r of rows.slice(1)) {
     const set = (r[iEdition] || "").trim().toLowerCase();
     const number = (r[iNumber] || "").trim();
     if (!set || !number) continue;
     if (iProxy !== -1 && /^(true|yes|1)$/i.test((r[iProxy] || "").trim())) { skippedProxy++; continue; }
+    const key = `${set}|${number}`;
+    if (ownedKeys.has(key)) { skippedExisting++; continue; } // already have it — no fetch needed
+    if (seen.has(key)) continue;
+    seen.add(key);
     const foil = iFoil !== -1 && /foil|etched/i.test((r[iFoil] || "").trim());
     items.push({ set, collector_number: number });
-    foilByKey[`${set}|${number}`] = foil;
-    if (iName !== -1) nameByKey[`${set}|${number}`] = (r[iName] || "").trim();
+    foilByKey[key] = foil;
+    if (iName !== -1) nameByKey[key] = (r[iName] || "").trim();
   }
   if (!items.length) {
+    // Nothing new to fetch. If everything was already owned, that's a success,
+    // not an error — say so instead of throwing.
+    if (skippedExisting) {
+      setStatus(ACTION_STATUS,
+        `Nothing new to import — all ${skippedExisting} card(s) are already in the collection.` +
+        (skippedProxy ? ` ${skippedProxy} proxy(ies) ignored.` : ""));
+      return;
+    }
     throw new Error(
       skippedProxy
         ? `No valid cards — the ${skippedProxy} cards in the CSV are proxies (playtest).`
@@ -1604,7 +1632,7 @@ async function importMoxfieldCSV(text) {
     );
   }
 
-  let imported = 0, skippedExisting = 0, aborted = null;
+  let imported = 0, aborted = null;
   const notFoundNames = []; // names of cards Scryfall couldn't match
   const buffer = []; // {id, entry} not yet written to the database
 
