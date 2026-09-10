@@ -1533,12 +1533,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Scryfall request with retry (backoff) on rate limit (429) or server error.
 async function scryfallCollection(identifiers) {
+  let lastErr = null;
   for (let attempt = 0; attempt < 6; attempt++) {
-    const res = await fetch(`${SCRYFALL}/cards/collection`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifiers }),
-    });
+    let res;
+    try {
+      res = await fetch(`${SCRYFALL}/cards/collection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifiers }),
+      });
+    } catch (err) {
+      // Network-level failure (offline, dropped connection, DNS) — fetch throws
+      // a TypeError ("Failed to fetch") instead of returning a response. These
+      // are usually transient (especially on mobile), so back off and retry the
+      // same way we do for a 429/5xx rather than aborting the whole import.
+      lastErr = err;
+      await sleep(500 * Math.pow(2, attempt)); // 0.5s, 1s, 2s, 4s, 8s, 16s
+      continue;
+    }
     if (res.status === 429 || res.status >= 500) {
       await sleep(500 * Math.pow(2, attempt)); // 0.5s, 1s, 2s, 4s, 8s, 16s
       continue;
@@ -1546,7 +1558,11 @@ async function scryfallCollection(identifiers) {
     if (!res.ok) throw new Error(`Error ${res.status} from Scryfall`);
     return res.json();
   }
-  throw new Error("Scryfall is rate-limiting the requests");
+  throw new Error(
+    lastErr
+      ? `couldn't reach Scryfall (${lastErr.message})`
+      : "Scryfall is rate-limiting the requests"
+  );
 }
 
 async function importMoxfieldCSV(text) {
