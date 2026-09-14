@@ -1079,7 +1079,11 @@ function renderPlaneswalkers() {
   }
   const isOwned = (c) => ownedByName.has((c.name || "").toLowerCase());
 
-  let cards = allPlaneswalkers.slice().sort((a, b) => nameCollator.compare(a.name, b.name));
+  // Ignore Alchemy rebalanced cards (names prefixed with "A-", e.g.
+  // "A-Teferi, Master of Time") — they aren't paper Planeswalkers.
+  let cards = allPlaneswalkers
+    .filter((c) => !/^A-/i.test(c.name || ""))
+    .sort((a, b) => nameCollator.compare(a.name, b.name));
   const total = cards.length;
   const missingCount = cards.filter((c) => !isOwned(c)).length;
   const ownedCount = total - missingCount;
