@@ -1040,7 +1040,7 @@ let allPlaneswalkers = null;
 // Fetches every Planeswalker printing from Scryfall (paging through the results).
 async function fetchAllPlaneswalkers() {
   if (allPlaneswalkers) return allPlaneswalkers;
-  let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent("type:planeswalker unique:prints")}&order=name`;
+  let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent("type:planeswalker -is:digital unique:prints")}&order=name`;
   const all = [];
   while (url) {
     const res = await fetch(url);
@@ -1074,14 +1074,15 @@ function renderPlaneswalkers() {
   // is in the collection (same as the set detail view).
   const isOwned = (c) => !!collection[c.id];
 
-  // Exclude versions that aren't regular paper printings:
-  //  - Alchemy rebalances (names prefixed with "A-", e.g. "A-Teferi…")
-  //  - Magic Online Promos (set code "prm") — MTGO-only digital printings.
-  // Then group every version of the same card together: by name, then set,
-  // then collector number.
+  // Exclude versions that aren't regular paper printings. The reliable signal is
+  // Scryfall's `digital` flag, which is true for Magic Online (MTGO) promos and
+  // Arena/Alchemy cards alike — no need to guess set codes. Keep the "A-" name
+  // check as a fallback for anything not flagged. Then group every version of the
+  // same card together: by name, then set, then collector number.
   const excluded = (c) =>
+    c.digital === true ||
     /^A-/i.test(c.name || "") ||
-    c.set === "prm" || /magic online/i.test(c.set_name || "");
+    /magic online/i.test(c.set_name || "");
   let cards = allPlaneswalkers
     .filter((c) => !excluded(c))
     .sort((a, b) =>
