@@ -1030,16 +1030,11 @@ function collectionCardEl(entry) {
 }
 
 /* ============================================================
-   "P" VIEW — every Planeswalker in the collection
+   "P" VIEW — every Planeswalker (owned + missing)
    ============================================================ */
-// A card is a Planeswalker when its type line contains "Planeswalker"
-// (covers the front face of double-faced walkers too, via the stored type_line).
-function isPlaneswalker(card) {
-  return typeof card.type_line === "string" && /planeswalker/i.test(card.type_line);
-}
-
 // Cache of every unique Planeswalker card (across all sets), from Scryfall.
-// One entry per distinct card (unique:cards), used by the "Show missing" mode.
+// One entry per distinct card (unique:cards). The view always needs this so it
+// can show the ones you don't own yet alongside the ones you do.
 let allPlaneswalkers = null;
 
 // Fetches every unique Planeswalker from Scryfall (paging through the results).
@@ -1061,69 +1056,49 @@ async function fetchAllPlaneswalkers() {
 
 function renderPlaneswalkers() {
   const grid = $("#planeswalkers-grid");
-  const showMissing = $("#planeswalkers-show-missing").checked;
+  const onlyMissing = $("#planeswalkers-only-missing").checked;
 
-  // "Show missing cards": list every Planeswalker (from Scryfall), graying out
-  // the ones you don't own yet, each with an Add button.
-  if (showMissing) {
-    if (!allPlaneswalkers) {
-      grid.innerHTML = "";
-      setStatus("#planeswalkers-status", `<span class="spinner"></span>Loading Planeswalkers…`);
-      fetchAllPlaneswalkers()
-        .then(() => { if ($("#view-planeswalkers").classList.contains("active")) renderPlaneswalkers(); })
-        .catch((err) => {
-          setStatus("#planeswalkers-status", `Failed to load: ${esc(err.message)}`, true);
-          $("#planeswalkers-show-missing").checked = false;
-          renderPlaneswalkers();
-        });
-      return;
-    }
-
-    // A Planeswalker counts as owned if you have ANY printing of it — match by
-    // name across the whole collection (so flip/double-faced walkers count too).
-    const ownedByName = new Map();
-    for (const e of Object.values(collection)) {
-      const n = (e.card.name || "").toLowerCase();
-      if (n && !ownedByName.has(n)) ownedByName.set(n, e);
-    }
-
-    const cards = allPlaneswalkers.slice().sort((a, b) => nameCollator.compare(a.name, b.name));
-    const missing = cards.filter((c) => !ownedByName.has((c.name || "").toLowerCase())).length;
-    setStatus("#planeswalkers-status", `${cards.length} Planeswalkers · ${missing} missing.`);
-
-    const frag = document.createDocumentFragment();
-    for (const c of cards) {
-      const owned = ownedByName.get((c.name || "").toLowerCase());
-      frag.appendChild(owned ? collectionCardEl(owned) : collectionMissingCardEl(c));
-    }
+  // The P view always shows every Planeswalker (owned + missing), so it needs
+  // the full list from Scryfall. Fetch it once, then re-render.
+  if (!allPlaneswalkers) {
     grid.innerHTML = "";
-    grid.appendChild(frag);
+    setStatus("#planeswalkers-status", `<span class="spinner"></span>Loading Planeswalkers…`);
+    fetchAllPlaneswalkers()
+      .then(() => { if ($("#view-planeswalkers").classList.contains("active")) renderPlaneswalkers(); })
+      .catch((err) => setStatus("#planeswalkers-status", `Failed to load: ${esc(err.message)}`, true));
     return;
   }
 
-  // Default: only the Planeswalkers you own.
-  const entries = Object.values(collection)
-    .filter((e) => isPlaneswalker(e.card))
-    .sort((a, b) => nameCollator.compare(a.card.name || "", b.card.name || ""));
-
-  if (!entries.length) {
-    setStatus("#planeswalkers-status", "");
-    grid.innerHTML = `
-      <div class="empty" style="grid-column: 1 / -1;">
-        <h3>No Planeswalkers yet</h3>
-        <p>Planeswalker cards in your collection will show up here — or turn on <strong>Show missing cards</strong> to add some.</p>
-      </div>`;
-    return;
+  // A Planeswalker counts as owned if you have ANY printing of it — match by
+  // name across the whole collection (so flip/double-faced walkers count too).
+  const ownedByName = new Map();
+  for (const e of Object.values(collection)) {
+    const n = (e.card.name || "").toLowerCase();
+    if (n && !ownedByName.has(n)) ownedByName.set(n, e);
   }
+  const isOwned = (c) => ownedByName.has((c.name || "").toLowerCase());
 
-  setStatus("#planeswalkers-status", `${entries.length} Planeswalker${entries.length === 1 ? "" : "s"}`);
+  let cards = allPlaneswalkers.slice().sort((a, b) => nameCollator.compare(a.name, b.name));
+  const total = cards.length;
+  const missingCount = cards.filter((c) => !isOwned(c)).length;
+
+  // Toggle: hide the ones you already own, leaving just the missing cards.
+  if (onlyMissing) cards = cards.filter((c) => !isOwned(c));
+
+  setStatus("#planeswalkers-status", onlyMissing
+    ? `${cards.length} missing Planeswalker${cards.length === 1 ? "" : "s"}.`
+    : `${total} Planeswalkers · ${missingCount} missing.`);
+
   const frag = document.createDocumentFragment();
-  for (const e of entries) frag.appendChild(collectionCardEl(e));
+  for (const c of cards) {
+    const owned = ownedByName.get((c.name || "").toLowerCase());
+    frag.appendChild(owned ? collectionCardEl(owned) : collectionMissingCardEl(c));
+  }
   grid.innerHTML = "";
   grid.appendChild(frag);
 }
 
-$("#planeswalkers-show-missing").addEventListener("change", () => { window.scrollTo(0, 0); renderPlaneswalkers(); });
+$("#planeswalkers-only-missing").addEventListener("change", () => { window.scrollTo(0, 0); renderPlaneswalkers(); });
 
 /* ============================================================
    SETS — pick a set and see all its cards
