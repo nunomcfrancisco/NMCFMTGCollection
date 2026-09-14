@@ -1032,15 +1032,15 @@ function collectionCardEl(entry) {
 /* ============================================================
    "P" VIEW — every Planeswalker (owned + missing)
    ============================================================ */
-// Cache of every unique Planeswalker card (across all sets), from Scryfall.
-// One entry per distinct card (unique:cards). The view always needs this so it
-// can show the ones you don't own yet alongside the ones you do.
+// Cache of every Planeswalker PRINTING (across all sets), from Scryfall.
+// One entry per printing (unique:prints) so the view can show every version of
+// each Planeswalker, marking the specific printings you own.
 let allPlaneswalkers = null;
 
-// Fetches every unique Planeswalker from Scryfall (paging through the results).
+// Fetches every Planeswalker printing from Scryfall (paging through the results).
 async function fetchAllPlaneswalkers() {
   if (allPlaneswalkers) return allPlaneswalkers;
-  let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent("type:planeswalker unique:cards")}&order=name`;
+  let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent("type:planeswalker unique:prints")}&order=name`;
   const all = [];
   while (url) {
     const res = await fetch(url);
@@ -1070,37 +1070,36 @@ function renderPlaneswalkers() {
     return;
   }
 
-  // A Planeswalker counts as owned if you have ANY printing of it — match by
-  // name across the whole collection (so flip/double-faced walkers count too).
-  const ownedByName = new Map();
-  for (const e of Object.values(collection)) {
-    const n = (e.card.name || "").toLowerCase();
-    if (n && !ownedByName.has(n)) ownedByName.set(n, e);
-  }
-  const isOwned = (c) => ownedByName.has((c.name || "").toLowerCase());
+  // Ownership is per printing: you own a specific version if that exact card id
+  // is in the collection (same as the set detail view).
+  const isOwned = (c) => !!collection[c.id];
 
   // Ignore Alchemy rebalanced cards (names prefixed with "A-", e.g.
-  // "A-Teferi, Master of Time") — they aren't paper Planeswalkers.
+  // "A-Teferi, Master of Time") — they aren't paper Planeswalkers. Then group
+  // every version of the same card together: by name, then set, then number.
   let cards = allPlaneswalkers
     .filter((c) => !/^A-/i.test(c.name || ""))
-    .sort((a, b) => nameCollator.compare(a.name, b.name));
+    .sort((a, b) =>
+      nameCollator.compare(a.name, b.name) ||
+      nameCollator.compare(a.set || "", b.set || "") ||
+      cmpCollector(a.collector_number, b.collector_number, true));
   const total = cards.length;
   const missingCount = cards.filter((c) => !isOwned(c)).length;
   const ownedCount = total - missingCount;
 
-  // Toggles (mutually exclusive): only missing hides the ones you own; only
-  // owned hides the ones you don't. Neither → show everything.
+  // Toggles (mutually exclusive): only missing hides the versions you own; only
+  // owned hides the ones you don't. Neither → show every version.
   if (onlyMissing) cards = cards.filter((c) => !isOwned(c));
   else if (onlyOwned) cards = cards.filter((c) => isOwned(c));
 
   setStatus("#planeswalkers-status",
-    onlyMissing ? `${cards.length} missing Planeswalker${cards.length === 1 ? "" : "s"}.`
-    : onlyOwned ? `${cards.length} Planeswalker${cards.length === 1 ? "" : "s"} in your collection.`
-    : `${total} Planeswalkers · ${ownedCount} owned · ${missingCount} missing.`);
+    onlyMissing ? `${cards.length} missing version${cards.length === 1 ? "" : "s"}.`
+    : onlyOwned ? `${cards.length} version${cards.length === 1 ? "" : "s"} in your collection.`
+    : `${total} versions · ${ownedCount} owned · ${missingCount} missing.`);
 
   const frag = document.createDocumentFragment();
   for (const c of cards) {
-    const owned = ownedByName.get((c.name || "").toLowerCase());
+    const owned = collection[c.id];
     frag.appendChild(owned ? collectionCardEl(owned) : collectionMissingCardEl(c));
   }
   grid.innerHTML = "";
