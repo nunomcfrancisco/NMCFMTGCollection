@@ -1038,30 +1038,92 @@ function isPlaneswalker(card) {
   return typeof card.type_line === "string" && /planeswalker/i.test(card.type_line);
 }
 
+// Cache of every unique Planeswalker card (across all sets), from Scryfall.
+// One entry per distinct card (unique:cards), used by the "Show missing" mode.
+let allPlaneswalkers = null;
+
+// Fetches every unique Planeswalker from Scryfall (paging through the results).
+async function fetchAllPlaneswalkers() {
+  if (allPlaneswalkers) return allPlaneswalkers;
+  let url = `${SCRYFALL}/cards/search?q=${encodeURIComponent("type:planeswalker unique:cards")}&order=name`;
+  const all = [];
+  while (url) {
+    const res = await fetch(url);
+    if (res.status === 404) break; // no results
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const data = await res.json();
+    all.push(...data.data);
+    url = data.has_more ? data.next_page : null;
+  }
+  allPlaneswalkers = all;
+  return all;
+}
+
 function renderPlaneswalkers() {
   const grid = $("#planeswalkers-grid");
-  const status = $("#planeswalkers-status");
+  const showMissing = $("#planeswalkers-show-missing").checked;
 
+  // "Show missing cards": list every Planeswalker (from Scryfall), graying out
+  // the ones you don't own yet, each with an Add button.
+  if (showMissing) {
+    if (!allPlaneswalkers) {
+      grid.innerHTML = "";
+      setStatus("#planeswalkers-status", `<span class="spinner"></span>Loading Planeswalkers…`);
+      fetchAllPlaneswalkers()
+        .then(() => { if ($("#view-planeswalkers").classList.contains("active")) renderPlaneswalkers(); })
+        .catch((err) => {
+          setStatus("#planeswalkers-status", `Failed to load: ${esc(err.message)}`, true);
+          $("#planeswalkers-show-missing").checked = false;
+          renderPlaneswalkers();
+        });
+      return;
+    }
+
+    // A Planeswalker counts as owned if you have ANY printing of it — match by
+    // name across the whole collection (so flip/double-faced walkers count too).
+    const ownedByName = new Map();
+    for (const e of Object.values(collection)) {
+      const n = (e.card.name || "").toLowerCase();
+      if (n && !ownedByName.has(n)) ownedByName.set(n, e);
+    }
+
+    const cards = allPlaneswalkers.slice().sort((a, b) => nameCollator.compare(a.name, b.name));
+    const missing = cards.filter((c) => !ownedByName.has((c.name || "").toLowerCase())).length;
+    setStatus("#planeswalkers-status", `${cards.length} Planeswalkers · ${missing} missing.`);
+
+    const frag = document.createDocumentFragment();
+    for (const c of cards) {
+      const owned = ownedByName.get((c.name || "").toLowerCase());
+      frag.appendChild(owned ? collectionCardEl(owned) : collectionMissingCardEl(c));
+    }
+    grid.innerHTML = "";
+    grid.appendChild(frag);
+    return;
+  }
+
+  // Default: only the Planeswalkers you own.
   const entries = Object.values(collection)
     .filter((e) => isPlaneswalker(e.card))
-    .sort((a, b) => (a.card.name || "").localeCompare(b.card.name || ""));
+    .sort((a, b) => nameCollator.compare(a.card.name || "", b.card.name || ""));
 
   if (!entries.length) {
-    status.textContent = "";
+    setStatus("#planeswalkers-status", "");
     grid.innerHTML = `
       <div class="empty" style="grid-column: 1 / -1;">
         <h3>No Planeswalkers yet</h3>
-        <p>Planeswalker cards in your collection will show up here.</p>
+        <p>Planeswalker cards in your collection will show up here — or turn on <strong>Show missing cards</strong> to add some.</p>
       </div>`;
     return;
   }
 
-  status.textContent = `${entries.length} Planeswalker${entries.length === 1 ? "" : "s"}`;
+  setStatus("#planeswalkers-status", `${entries.length} Planeswalker${entries.length === 1 ? "" : "s"}`);
   const frag = document.createDocumentFragment();
   for (const e of entries) frag.appendChild(collectionCardEl(e));
   grid.innerHTML = "";
   grid.appendChild(frag);
 }
+
+$("#planeswalkers-show-missing").addEventListener("change", () => { window.scrollTo(0, 0); renderPlaneswalkers(); });
 
 /* ============================================================
    SETS — pick a set and see all its cards

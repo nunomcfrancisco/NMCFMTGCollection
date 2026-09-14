@@ -187,6 +187,12 @@
     <!-- ===== VIEW: PLANESWALKERS ===== -->
     <section id="view-planeswalkers" class="view">
       <h2 class="edition-title">Planeswalkers</h2>
+      <div class="collection-toolbar">
+        <label class="check-inline">
+          <input type="checkbox" id="planeswalkers-show-missing" />
+          Show missing cards
+        </label>
+      </div>
       <div id="planeswalkers-status" class="status" aria-live="polite"></div>
       <div id="planeswalkers-grid" class="card-grid"></div>
     </section>
@@ -242,7 +248,7 @@
   </footer>
 
   <script src="config.js?v=58"></script>
-  <script src="app.js?v=68"></script>
+  <script src="app.js?v=69"></script>
   <script src="auth.js?v=58" type="module"></script>
 
   <!-- PWA: register the service worker so the app is installable and works offline -->
