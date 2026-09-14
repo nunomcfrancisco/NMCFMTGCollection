@@ -1057,6 +1057,7 @@ async function fetchAllPlaneswalkers() {
 function renderPlaneswalkers() {
   const grid = $("#planeswalkers-grid");
   const onlyMissing = $("#planeswalkers-only-missing").checked;
+  const onlyOwned = $("#planeswalkers-only-owned").checked;
 
   // The P view always shows every Planeswalker (owned + missing), so it needs
   // the full list from Scryfall. Fetch it once, then re-render.
@@ -1081,13 +1082,17 @@ function renderPlaneswalkers() {
   let cards = allPlaneswalkers.slice().sort((a, b) => nameCollator.compare(a.name, b.name));
   const total = cards.length;
   const missingCount = cards.filter((c) => !isOwned(c)).length;
+  const ownedCount = total - missingCount;
 
-  // Toggle: hide the ones you already own, leaving just the missing cards.
+  // Toggles (mutually exclusive): only missing hides the ones you own; only
+  // owned hides the ones you don't. Neither → show everything.
   if (onlyMissing) cards = cards.filter((c) => !isOwned(c));
+  else if (onlyOwned) cards = cards.filter((c) => isOwned(c));
 
-  setStatus("#planeswalkers-status", onlyMissing
-    ? `${cards.length} missing Planeswalker${cards.length === 1 ? "" : "s"}.`
-    : `${total} Planeswalkers · ${missingCount} missing.`);
+  setStatus("#planeswalkers-status",
+    onlyMissing ? `${cards.length} missing Planeswalker${cards.length === 1 ? "" : "s"}.`
+    : onlyOwned ? `${cards.length} Planeswalker${cards.length === 1 ? "" : "s"} in your collection.`
+    : `${total} Planeswalkers · ${ownedCount} owned · ${missingCount} missing.`);
 
   const frag = document.createDocumentFragment();
   for (const c of cards) {
@@ -1098,7 +1103,18 @@ function renderPlaneswalkers() {
   grid.appendChild(frag);
 }
 
-$("#planeswalkers-only-missing").addEventListener("change", () => { window.scrollTo(0, 0); renderPlaneswalkers(); });
+// The two Planeswalker toggles are mutually exclusive: turning one on turns the
+// other off (checking neither shows everything).
+$("#planeswalkers-only-missing").addEventListener("change", (e) => {
+  if (e.target.checked) $("#planeswalkers-only-owned").checked = false;
+  window.scrollTo(0, 0);
+  renderPlaneswalkers();
+});
+$("#planeswalkers-only-owned").addEventListener("change", (e) => {
+  if (e.target.checked) $("#planeswalkers-only-missing").checked = false;
+  window.scrollTo(0, 0);
+  renderPlaneswalkers();
+});
 
 /* ============================================================
    SETS — pick a set and see all its cards
