@@ -13,7 +13,7 @@
    Bump CACHE_VERSION whenever the app shell changes so old caches
    are cleared on the next visit.
    ============================================================ */
-const CACHE_VERSION = 'v84';
+const CACHE_VERSION = 'v85';
 const CACHE_NAME = `mtg-collection-${CACHE_VERSION}`;
 
 /* Core files that make up the "app shell". Kept in sync with
@@ -24,7 +24,7 @@ const APP_SHELL = [
   './index.html',
   './styles.css?v=67',
   './config.js?v=58',
-  './app.js?v=75',
+  './app.js?v=76',
   './auth.js?v=58',
   './icon.svg?v=58',
   './icon.png?v=58',

@@ -1089,6 +1089,11 @@ function renderPlaneswalkers() {
       nameCollator.compare(a.name, b.name) ||
       nameCollator.compare(a.set || "", b.set || "") ||
       cmpCollector(a.collector_number, b.collector_number, true));
+
+  // Search-as-you-type: narrow by name before counting/toggling.
+  const q = $("#planeswalkers-search").value.trim().toLowerCase();
+  if (q) cards = cards.filter((c) => (c.name || "").toLowerCase().includes(q));
+
   const total = cards.length;
   const missingCount = cards.filter((c) => !isOwned(c)).length;
   const ownedCount = total - missingCount;
@@ -1111,6 +1116,9 @@ function renderPlaneswalkers() {
   grid.innerHTML = "";
   grid.appendChild(frag);
 }
+
+// Filter the Planeswalker list as you type (debounced; keeps scroll position).
+$("#planeswalkers-search").addEventListener("input", debounce(() => renderPlaneswalkers(), 150));
 
 // The two Planeswalker toggles are mutually exclusive: turning one on turns the
 // other off (checking neither shows everything).
