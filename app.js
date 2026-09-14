@@ -1074,11 +1074,16 @@ function renderPlaneswalkers() {
   // is in the collection (same as the set detail view).
   const isOwned = (c) => !!collection[c.id];
 
-  // Ignore Alchemy rebalanced cards (names prefixed with "A-", e.g.
-  // "A-Teferi, Master of Time") — they aren't paper Planeswalkers. Then group
-  // every version of the same card together: by name, then set, then number.
+  // Exclude versions that aren't regular paper printings:
+  //  - Alchemy rebalances (names prefixed with "A-", e.g. "A-Teferi…")
+  //  - Magic Online Promos (set code "prm") — MTGO-only digital printings.
+  // Then group every version of the same card together: by name, then set,
+  // then collector number.
+  const excluded = (c) =>
+    /^A-/i.test(c.name || "") ||
+    c.set === "prm" || /magic online/i.test(c.set_name || "");
   let cards = allPlaneswalkers
-    .filter((c) => !/^A-/i.test(c.name || ""))
+    .filter((c) => !excluded(c))
     .sort((a, b) =>
       nameCollator.compare(a.name, b.name) ||
       nameCollator.compare(a.set || "", b.set || "") ||
