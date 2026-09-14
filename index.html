@@ -38,6 +38,8 @@
         <button class="tab" data-view="editions" role="tab">+</button>
         <button class="tab tab-icon tab-pct" data-view="stats" role="tab"
                 aria-label="Statistics" title="Statistics">%</button>
+        <button class="tab tab-icon tab-pct" data-view="planeswalkers" role="tab"
+                aria-label="Planeswalkers" title="Planeswalkers">P</button>
         <button class="tab tab-icon" data-view="settings" role="tab"
                 aria-label="Settings" title="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -182,6 +184,13 @@
       </div>
     </section>
 
+    <!-- ===== VIEW: PLANESWALKERS ===== -->
+    <section id="view-planeswalkers" class="view">
+      <h2 class="edition-title">Planeswalkers</h2>
+      <div id="planeswalkers-status" class="status" aria-live="polite"></div>
+      <div id="planeswalkers-grid" class="card-grid"></div>
+    </section>
+
     <!-- ===== VIEW: SETTINGS ===== -->
     <section id="view-settings" class="view">
       <h2 class="edition-title">Settings</h2>
@@ -233,7 +242,7 @@
   </footer>
 
   <script src="config.js?v=58"></script>
-  <script src="app.js?v=67"></script>
+  <script src="app.js?v=68"></script>
   <script src="auth.js?v=58" type="module"></script>
 
   <!-- PWA: register the service worker so the app is installable and works offline -->

@@ -310,6 +310,7 @@ $$(".tab").forEach((tab) => {
     if (view === "collection") { collectionView.setCode = null; renderCollection(); }
     if (view === "editions") initEditions();
     if (view === "stats") renderStats();
+    if (view === "planeswalkers") renderPlaneswalkers();
     // Every new view starts at the top, not at the previous scroll position.
     window.scrollTo(0, 0);
   });
@@ -628,7 +629,12 @@ let keepScroll = false;
 function rerenderKeepScroll() {
   const y = window.scrollY;
   keepScroll = true;
-  try { renderCollection(); }
+  // Re-render whichever view is on screen so an edit (remove/foil) made from the
+  // Planeswalkers view updates that grid, not the hidden collection grid.
+  try {
+    if ($("#view-planeswalkers").classList.contains("active")) renderPlaneswalkers();
+    else renderCollection();
+  }
   finally { keepScroll = false; }
   window.scrollTo(0, y);
 }
@@ -1021,6 +1027,40 @@ function collectionCardEl(entry) {
   wireImagePreview(imgWrap, card);
 
   return el;
+}
+
+/* ============================================================
+   "P" VIEW — every Planeswalker in the collection
+   ============================================================ */
+// A card is a Planeswalker when its type line contains "Planeswalker"
+// (covers the front face of double-faced walkers too, via the stored type_line).
+function isPlaneswalker(card) {
+  return typeof card.type_line === "string" && /planeswalker/i.test(card.type_line);
+}
+
+function renderPlaneswalkers() {
+  const grid = $("#planeswalkers-grid");
+  const status = $("#planeswalkers-status");
+
+  const entries = Object.values(collection)
+    .filter((e) => isPlaneswalker(e.card))
+    .sort((a, b) => (a.card.name || "").localeCompare(b.card.name || ""));
+
+  if (!entries.length) {
+    status.textContent = "";
+    grid.innerHTML = `
+      <div class="empty" style="grid-column: 1 / -1;">
+        <h3>No Planeswalkers yet</h3>
+        <p>Planeswalker cards in your collection will show up here.</p>
+      </div>`;
+    return;
+  }
+
+  status.textContent = `${entries.length} Planeswalker${entries.length === 1 ? "" : "s"}`;
+  const frag = document.createDocumentFragment();
+  for (const e of entries) frag.appendChild(collectionCardEl(e));
+  grid.innerHTML = "";
+  grid.appendChild(frag);
 }
 
 /* ============================================================
