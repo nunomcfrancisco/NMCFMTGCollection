@@ -247,18 +247,22 @@ a { color: var(--accent-hi); }
   border-color: var(--accent);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.44), 0 0 22px var(--accent-glow);
 }
-.card-img-wrap { position: relative; aspect-ratio: 488 / 680; background: var(--bg-elev-2); cursor: pointer; }
-.card-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.3s ease; }
-.card-img-wrap.img-loaded img { opacity: 1; }
-/* Spinner while the card image is still loading. */
-.card-img-wrap::after {
-  content: ""; position: absolute; top: 50%; left: 50%;
-  width: 24px; height: 24px; margin: -12px 0 0 -12px;
-  border: 2px solid var(--border); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin 0.7s linear infinite;
-  opacity: 1; transition: opacity 0.2s ease; pointer-events: none;
+.card-img-wrap { position: relative; aspect-ratio: 488 / 680; background: var(--bg-elev-2); cursor: pointer; overflow: hidden; }
+.card-img-wrap img {
+  width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0;
+  transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-.card-img-wrap.img-loaded::after { opacity: 0; }
+.card-img-wrap.img-loaded img { opacity: 1; }
+/* Hover zoom on the art (clipped by the wrapper's overflow). */
+.card:hover .card-img-wrap img { transform: scale(1.05); }
+/* Shimmer placeholder while the card image is still loading. */
+.card-img-wrap:not(.img-loaded)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.07) 45%, transparent 70%);
+  background-size: 220% 100%;
+  animation: shimmer 1.25s linear infinite;
+}
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .card-qty-badge {
   position: absolute; top: 8px; right: 8px;
   background: rgba(0,0,0,0.78); color: var(--accent-hi);
@@ -320,10 +324,17 @@ a { color: var(--accent-hi); }
 /* ===== Missing cards (grayscale) ===== */
 .card.not-owned .card-img-wrap img {
   filter: grayscale(1) brightness(0.72);
-  transition: filter 0.15s ease;
+  transition: filter 0.15s ease, opacity 0.35s ease, transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 .card.not-owned:hover .card-img-wrap img { filter: grayscale(0.35) brightness(0.9); }
 .card.not-owned { opacity: 0.92; }
+
+/* Press feedback (subtle). */
+.card:active { transform: translateY(-1px) scale(0.995); }
+.btn:active { transform: translateY(1px); }
+.tab:active { transform: translateY(1px); }
+.foil-btn:active svg { transform: scale(1.2); }
+.foil-btn svg { transition: transform 0.15s ease; }
 
 /* ===== Sets — filter and symbol grid ===== */
 #edition-search,
@@ -468,7 +479,13 @@ a { color: var(--accent-hi); }
   cursor: zoom-out; padding: 20px;
 }
 .preview[hidden] { display: none; }
-.preview img { max-height: 92vh; max-width: 92vw; border-radius: 18px; box-shadow: var(--shadow); }
+.preview:not([hidden]) { animation: overlay-fade 0.2s ease both; }
+.preview img {
+  max-height: 92vh; max-width: 92vw; border-radius: 18px; box-shadow: var(--shadow);
+  animation: pop-in 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes overlay-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
 
 /* ===== Footer ===== */
 .footer { border-top: 1px solid var(--border); color: var(--text-dim); font-size: 0.85rem; }
@@ -537,6 +554,48 @@ a { color: var(--accent-hi); }
   animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== View + card entrance animations ===== */
+/* The active view fades/slides in when you switch tabs (and on first load). */
+@keyframes view-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.view.active { animation: view-in 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+
+/* Cards cascade in when a view is entered (class added on tab click for ~0.7s,
+   so it does NOT replay on filter/sort re-renders within the same view). */
+@keyframes card-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.view.anim-cards .card-grid .card { animation: card-in 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.view.anim-cards .card-grid .card:nth-child(1) { animation-delay: 0s; }
+.view.anim-cards .card-grid .card:nth-child(2) { animation-delay: 0.03s; }
+.view.anim-cards .card-grid .card:nth-child(3) { animation-delay: 0.06s; }
+.view.anim-cards .card-grid .card:nth-child(4) { animation-delay: 0.09s; }
+.view.anim-cards .card-grid .card:nth-child(5) { animation-delay: 0.12s; }
+.view.anim-cards .card-grid .card:nth-child(6) { animation-delay: 0.15s; }
+.view.anim-cards .card-grid .card:nth-child(7) { animation-delay: 0.18s; }
+.view.anim-cards .card-grid .card:nth-child(8) { animation-delay: 0.21s; }
+.view.anim-cards .card-grid .card:nth-child(9) { animation-delay: 0.24s; }
+.view.anim-cards .card-grid .card:nth-child(10) { animation-delay: 0.27s; }
+.view.anim-cards .card-grid .card:nth-child(n+11) { animation-delay: 0.3s; }
+
+/* Planeswalkers toggles as modern pills (highlight when checked). */
+#view-planeswalkers .collection-toolbar .check-inline {
+  padding: 7px 12px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--bg-elev);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+#view-planeswalkers .collection-toolbar .check-inline:has(input:checked) {
+  border-color: var(--accent); color: var(--text);
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-elev));
+}
+
+/* Respect users who prefer reduced motion: drop the non-essential animations. */
+@media (prefers-reduced-motion: reduce) {
+  .view.active,
+  .view.anim-cards .card-grid .card,
+  .preview:not([hidden]),
+  .preview img { animation: none !important; }
+  .card:hover .card-img-wrap img { transform: none; }
+  .card-img-wrap:not(.img-loaded)::after { animation: none; }
+}
 
 @media (max-width: 560px) {
   /* Row 1: icon + user + Log out. Row 2: tabs.
