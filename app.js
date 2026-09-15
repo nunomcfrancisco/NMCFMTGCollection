@@ -533,18 +533,6 @@ function cardColorKey(card) {
   return "M";
 }
 
-// Mana-color accent for a card's colored top strip. One mana colour, a gradient
-// across the card's colours for multicolor, or silver for colourless. Returns a
-// CSS <color> or <gradient> string, set as --card-mana on the card element.
-const MANA_STRIP = { W: "#f2e9cc", U: "#5aa9e6", B: "#8b8098", R: "#e0644a", G: "#57af69" };
-function manaAccent(card) {
-  const colors = Array.isArray(card.colors) ? card.colors : [];
-  if (colors.length === 0) return "#98a2b3"; // colourless / artifact / land
-  if (colors.length === 1) return MANA_STRIP[colors[0]] || "#98a2b3";
-  const stops = ["W", "U", "B", "R", "G"].filter((c) => colors.includes(c)).map((c) => MANA_STRIP[c]);
-  return `linear-gradient(90deg, ${stops.join(", ")})`;
-}
-
 // Cards by colour. Cards saved before this field existed (colors === undefined)
 // are skipped, so percentages reflect only cards we have colour data for.
 function renderColorChart(entries) {
@@ -980,7 +968,6 @@ function wireImagePreview(imgWrap, card) {
 function collectionMissingCardEl(card) {
   const el = document.createElement("div");
   el.className = "card not-owned";
-  el.style.setProperty("--card-mana", manaAccent(card));
   const price = cardPrice(card, false);
 
   el.innerHTML = `
@@ -1011,7 +998,6 @@ function collectionCardEl(entry) {
   const { card, foil } = entry;
   const el = document.createElement("div");
   el.className = "card";
-  el.style.setProperty("--card-mana", manaAccent(card));
   const unit = cardPrice(card, foil);
 
   el.innerHTML = `
@@ -1372,7 +1358,6 @@ function renderEdition() {
 function editionCardEl(card) {
   const el = document.createElement("div");
   el.className = "card";
-  el.style.setProperty("--card-mana", manaAccent(card));
   const price = cardPrice(card, false);
 
   el.innerHTML = `
