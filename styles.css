@@ -1,12 +1,18 @@
 :root {
-  --bg: #0b0e1f;
-  --bg-elev: #141a33;
-  --bg-elev-2: #1c2447;
-  --border: #2c3562;
-  --text: #e7ecff;
-  --text-dim: #98a4d4;
+  /* "Deep Mana" palette — deeper night-blue ground with a touch more contrast
+     between the surface layers, so cards and bars read as distinct planes. */
+  --bg: #090c1a;
+  --bg-elev: #121835;
+  --bg-elev-2: #1b2450;
+  --border: #283260;
+  --text: #e9edff;
+  --text-dim: #96a2d2;
   --accent: #38bdf8;
   --accent-hi: #7dd3fc;
+  /* Soft cyan glow, reused for hovers/focus rings. */
+  --accent-glow: rgba(56, 189, 248, 0.16);
+  /* Gold used for rare/complete accents. */
+  --gold: #edc967;
   /* Dark text on surfaces with the accent color (buttons, tabs). */
   --on-accent: #05132a;
   /* "Neon" touches for multicolor elements (foil badge, glows). */
@@ -15,8 +21,8 @@
   --neon-lime: #a3e635;
   --red: #f4636e;
   --green: #4ade80;
-  --radius: 12px;
-  --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --radius: 14px;
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
 }
 
 * { box-sizing: border-box; }
@@ -37,9 +43,13 @@ a { color: var(--accent-hi); }
   position: sticky;
   top: 0;
   z-index: 20;
-  background: linear-gradient(180deg, #121a38, #0b0e1f);
+  /* Glassy bar: translucent so the collection scrolls under it, with a
+     stronger blur + saturation for depth. */
+  background: linear-gradient(180deg, rgba(19, 26, 56, 0.86), rgba(9, 12, 26, 0.74));
   border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 0 rgba(125, 211, 252, 0.06), 0 8px 24px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
 }
 .topbar-inner {
   max-width: 1200px;
@@ -64,8 +74,12 @@ a { color: var(--accent-hi); }
   filter: brightness(0) invert(1);
 }
 .brand-title {
-  font-size: 1.15rem;
+  /* Cinzel serif wordmark — nods to real Magic card titles. Falls back to a
+     serif stack if the web font can't load (e.g. offline). */
+  font-family: "Cinzel", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  font-size: 1.22rem;
   font-weight: 700;
+  letter-spacing: 0.03em;
   color: var(--text);
   white-space: nowrap;
 }
@@ -95,7 +109,7 @@ a { color: var(--accent-hi); }
   transition: all 0.15s ease;
 }
 .tab:hover { color: var(--text); background: var(--bg-elev); }
-.tab.active { color: var(--on-accent); background: var(--accent); }
+.tab.active { color: var(--on-accent); background: var(--accent); box-shadow: 0 0 18px var(--accent-glow); }
 
 /* Icon-only tab (settings) — square, no text. */
 .tab-icon {
@@ -218,15 +232,21 @@ a { color: var(--accent-hi); }
   margin-top: 8px;
 }
 .card {
-  background: var(--bg-elev);
+  background: var(--bg-elev); /* fallback if color-mix is unsupported */
+  background: linear-gradient(180deg, var(--bg-elev), color-mix(in srgb, var(--bg-elev) 70%, var(--bg)));
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.12s ease, border-color 0.12s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
-.card:hover { transform: translateY(-3px); border-color: var(--accent); }
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.44), 0 0 22px var(--accent-glow);
+}
 .card-img-wrap { position: relative; aspect-ratio: 488 / 680; background: var(--bg-elev-2); cursor: pointer; }
 .card-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity 0.3s ease; }
 .card-img-wrap.img-loaded img { opacity: 1; }
@@ -344,9 +364,10 @@ a { color: var(--accent-hi); }
   padding: 18px 12px 14px; text-align: center;
   background: var(--bg-elev); border: 1px solid var(--border);
   border-radius: var(--radius); color: var(--text);
-  cursor: pointer; transition: transform 0.12s ease, border-color 0.12s ease;
+  cursor: pointer; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.24);
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
-.set-cell:hover { transform: translateY(-3px); border-color: var(--accent); }
+.set-cell:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 12px 26px rgba(0, 0, 0, 0.42), 0 0 20px var(--accent-glow); }
 .set-symbol {
   width: 46px; height: 46px; object-fit: contain;
   /* Scryfall SVG symbols are black → force white on the dark theme. */
