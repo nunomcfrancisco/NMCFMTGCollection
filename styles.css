@@ -244,20 +244,21 @@ a { color: var(--accent-hi); }
   transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 /* Mana-color accent along the card's colour identity: a strip on the top edge
-   and one down the right edge, so the card reads as lit from that corner (3D). */
+   and one down the right edge of the ART only (not the info/buttons below), so
+   the card image reads as lit from the top-right corner (3D). */
 .card::before {
   content: "";
   position: absolute; top: 0; left: 0; right: 0; height: 5px;
   background: var(--card-mana, var(--border));
-  z-index: 2; pointer-events: none;
+  z-index: 3; pointer-events: none;
 }
-.card::after {
+.card-img-wrap::before {
   content: "";
   position: absolute; top: 0; right: 0; bottom: 0; width: 5px;
   background: var(--card-mana, var(--border));
-  z-index: 2; pointer-events: none;
+  z-index: 3; pointer-events: none;
 }
-.card.not-owned::before, .card.not-owned::after { opacity: 0.5; }
+.card.not-owned::before, .card.not-owned .card-img-wrap::before { opacity: 0.5; }
 .card:hover {
   transform: translateY(-3px);
   border-color: var(--accent);
