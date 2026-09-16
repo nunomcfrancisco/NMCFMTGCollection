@@ -306,11 +306,16 @@ $$(".tab").forEach((tab) => {
     $$(".view").forEach((v) => v.classList.remove("active"));
     tab.classList.add("active");
     const view = tab.dataset.view;
-    $(`#view-${view}`).classList.add("active");
+    const section = $(`#view-${view}`);
+    section.classList.add("active");
     if (view === "collection") { collectionView.setCode = null; renderCollection(); }
     if (view === "editions") initEditions();
     if (view === "stats") renderStats();
     if (view === "planeswalkers") renderPlaneswalkers();
+    // One-shot card cascade: the class drives the entrance stagger, then is
+    // removed so it doesn't replay on later filter/sort re-renders in this view.
+    section.classList.add("anim-cards");
+    setTimeout(() => section.classList.remove("anim-cards"), 700);
     // Every new view starts at the top, not at the previous scroll position.
     window.scrollTo(0, 0);
   });
@@ -437,14 +442,31 @@ const TYPE_CHART = [
   { key: "other", label: "Other", color: "#7a83b8" },
 ];
 
+// Animates a number from 0 to `to`, formatting each frame with `fmt`.
+// Falls back to the final value instantly under prefers-reduced-motion.
+function countUp(el, to, fmt, ms = 900) {
+  if (!el) return;
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || !to) { el.textContent = fmt(to); return; }
+  const start = performance.now();
+  (function frame(now) {
+    const t = Math.min(1, (now - start) / ms);
+    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    el.textContent = fmt(to * eased);
+    if (t < 1) requestAnimationFrame(frame);
+  })(start);
+}
+
 function renderStats() {
   const entries = Object.values(collection);
   const unique = entries.length;
   const totalValue = entries.reduce((s, e) => s + cardPrice(e.card, e.foil), 0);
 
   $("#stats-summary").innerHTML = `
-    <div class="stat"><div class="stat-label">Cards</div><div class="stat-value">${numFmt.format(unique)}</div></div>
-    <div class="stat"><div class="stat-label">Estimated value</div><div class="stat-value">${eur(totalValue)}</div></div>`;
+    <div class="stat"><div class="stat-label">Cards</div><div class="stat-value" id="stat-cards">${numFmt.format(unique)}</div></div>
+    <div class="stat"><div class="stat-label">Estimated value</div><div class="stat-value" id="stat-value">${eur(totalValue)}</div></div>`;
+  countUp($("#stat-cards"), unique, (v) => numFmt.format(Math.round(v)));
+  countUp($("#stat-value"), totalValue, (v) => eur(v));
 
   renderTopValue(entries);
   renderRarityChart(entries);
