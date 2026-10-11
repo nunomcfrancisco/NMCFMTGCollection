@@ -45,7 +45,7 @@
         <button class="tab tab-icon tab-pct" data-view="planeswalkers" role="tab"
                 aria-label="Planeswalkers" title="Planeswalkers">P</button>
         <button class="tab tab-icon tab-pct" data-view="binder" role="tab"
-                aria-label="Binder" title="Binder">C</button>
+                aria-label="Binder" title="Binder">B</button>
         <button class="tab tab-icon" data-view="settings" role="tab"
                 aria-label="Settings" title="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -211,13 +211,13 @@
       <div id="planeswalkers-grid" class="card-grid"></div>
     </section>
 
-    <!-- ===== VIEW: BINDER (C) ===== -->
+    <!-- ===== VIEW: BINDER (B) ===== -->
     <section id="view-binder" class="view">
-      <h2 class="edition-title">Binder</h2>
+      <h2 class="edition-title">Binder View</h2>
       <div class="collection-toolbar">
-        <select id="binder-set" aria-label="Choose a set">
-          <option value="">Choose a set…</option>
-        </select>
+        <input id="binder-set" type="search" list="binder-set-list"
+               placeholder="Search a set…" aria-label="Choose a set" autocomplete="off" />
+        <datalist id="binder-set-list"></datalist>
         <select id="binder-layout" aria-label="Page size">
           <option value="3" selected>3 × 3</option>
           <option value="4">4 × 4</option>
@@ -279,7 +279,7 @@
   </footer>
 
   <script src="config.js?v=58"></script>
-  <script src="app.js?v=80"></script>
+  <script src="app.js?v=81"></script>
   <script src="auth.js?v=58" type="module"></script>
 
   <!-- PWA: register the service worker so the app is installable and works offline -->

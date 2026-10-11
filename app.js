@@ -1161,6 +1161,7 @@ $("#planeswalkers-only-owned").addEventListener("change", (e) => {
    (two pages per spread; 3×3 or 4×4; owned in colour, missing grey)
    ============================================================ */
 let binderState = { setCode: "", layout: 3, spread: 0, cards: [], loading: false, populated: false };
+let binderSetByName = new Map(); // lowercased set name → set code (for the search box)
 
 async function initBinder() {
   // The set picker needs the sets list; load it on first open.
@@ -1174,23 +1175,33 @@ async function initBinder() {
   renderBinder();
 }
 
-// Fills the set <select> once (newest sets first, same list as the Sets view).
+// Fills the set search datalist once (newest sets first) and the name→code map.
 function populateBinderSets() {
   if (binderState.populated) return;
   const frag = document.createDocumentFragment();
   for (const s of editionsState.sets) {
     const opt = document.createElement("option");
-    opt.value = s.code;
-    opt.textContent = s.name;
+    opt.value = s.name;
     frag.appendChild(opt);
+    binderSetByName.set(s.name.trim().toLowerCase(), s.code);
   }
-  $("#binder-set").appendChild(frag);
+  $("#binder-set-list").appendChild(frag);
   binderState.populated = true;
 }
 
+// Resolve the typed/selected set name to a code and open it.
 $("#binder-set").addEventListener("change", (e) => {
-  binderState.setCode = e.target.value;
-  binderState.spread = 0;
+  const typed = e.target.value.trim().toLowerCase();
+  if (!typed) { binderState.setCode = ""; binderState.spread = 0; loadBinderCards(); return; }
+  const code = binderSetByName.get(typed);
+  if (!code) {
+    binderState.setCode = ""; binderState.cards = [];
+    $("#binder-spread").innerHTML = ""; $("#binder-pager").hidden = true;
+    setStatus("#binder-status", "No set matches that name — pick one from the list.");
+    return;
+  }
+  if (code === binderState.setCode) return;
+  binderState.setCode = code; binderState.spread = 0;
   loadBinderCards();
 });
 $("#binder-layout").addEventListener("change", (e) => {
