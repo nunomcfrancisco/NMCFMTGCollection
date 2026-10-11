@@ -465,6 +465,28 @@ a { color: var(--accent-hi); }
 .collection-toolbar input:focus, .collection-toolbar select:focus { outline: none; border-color: var(--accent); }
 .spacer { flex: 1; }
 
+/* ===== Binder (C) view — two pages per spread, 3×3 or 4×4 ===== */
+.binder-spread { display: flex; gap: 22px; align-items: flex-start; }
+.binder-page {
+  flex: 1 1 0; min-width: 0;
+  display: grid; gap: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.24);
+}
+.binder-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.binder-cols-4 { grid-template-columns: repeat(4, 1fr); }
+.binder-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
+.binder-pager[hidden] { display: none; }
+.binder-count { color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 128px; text-align: center; }
+@media (max-width: 560px) {
+  /* Stack the two pages on a phone so cards stay a usable size. */
+  .binder-spread { flex-direction: column; gap: 14px; }
+  .binder-page { padding: 8px; gap: 6px; }
+}
+
 /* ===== Empty state ===== */
 .empty {
   text-align: center; color: var(--text-dim); padding: 60px 20px;

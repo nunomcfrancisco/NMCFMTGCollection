@@ -312,6 +312,7 @@ $$(".tab").forEach((tab) => {
     if (view === "editions") initEditions();
     if (view === "stats") renderStats();
     if (view === "planeswalkers") renderPlaneswalkers();
+    if (view === "binder") initBinder();
     // One-shot card cascade: the class drives the entrance stagger, then is
     // removed so it doesn't replay on later filter/sort re-renders in this view.
     section.classList.add("anim-cards");
@@ -1154,6 +1155,118 @@ $("#planeswalkers-only-owned").addEventListener("change", (e) => {
   window.scrollTo(0, 0);
   renderPlaneswalkers();
 });
+
+/* ============================================================
+   BINDER (C) — one set at a time, laid out as binder pages
+   (two pages per spread; 3×3 or 4×4; owned in colour, missing grey)
+   ============================================================ */
+let binderState = { setCode: "", layout: 3, spread: 0, cards: [], loading: false, populated: false };
+
+async function initBinder() {
+  // The set picker needs the sets list; load it on first open.
+  if (!editionsState.setsLoaded) {
+    setStatus("#binder-status", `<span class="spinner"></span>Loading sets…`);
+    try { await ensureSets(); }
+    catch (err) { setStatus("#binder-status", `Failed to load sets: ${esc(err.message)}`, true); return; }
+    setStatus("#binder-status", "");
+  }
+  populateBinderSets();
+  renderBinder();
+}
+
+// Fills the set <select> once (newest sets first, same list as the Sets view).
+function populateBinderSets() {
+  if (binderState.populated) return;
+  const frag = document.createDocumentFragment();
+  for (const s of editionsState.sets) {
+    const opt = document.createElement("option");
+    opt.value = s.code;
+    opt.textContent = s.name;
+    frag.appendChild(opt);
+  }
+  $("#binder-set").appendChild(frag);
+  binderState.populated = true;
+}
+
+$("#binder-set").addEventListener("change", (e) => {
+  binderState.setCode = e.target.value;
+  binderState.spread = 0;
+  loadBinderCards();
+});
+$("#binder-layout").addEventListener("change", (e) => {
+  binderState.layout = Number(e.target.value) === 4 ? 4 : 3;
+  binderState.spread = 0;
+  renderBinder();
+  window.scrollTo(0, 0);
+});
+
+async function loadBinderCards() {
+  const code = binderState.setCode;
+  binderState.cards = [];
+  $("#binder-spread").innerHTML = "";
+  $("#binder-pager").hidden = true;
+  if (!code) { renderBinder(); return; }
+  binderState.loading = true;
+  setStatus("#binder-status", `<span class="spinner"></span>Loading cards…`);
+  try {
+    const all = await fetchSetCards(code);
+    if (binderState.setCode !== code) return; // user switched set meanwhile
+    binderState.cards = all.slice().sort((a, b) => cmpCollector(a.collector_number, b.collector_number, true));
+    setStatus("#binder-status", "");
+    renderBinder();
+  } catch (err) {
+    setStatus("#binder-status", `Failed to load cards: ${esc(err.message)}`, true);
+  } finally {
+    binderState.loading = false;
+  }
+}
+
+function renderBinder() {
+  const spreadEl = $("#binder-spread");
+  const pagerEl = $("#binder-pager");
+
+  if (!binderState.setCode) {
+    spreadEl.innerHTML = "";
+    pagerEl.hidden = true;
+    setStatus("#binder-status", "Pick a set to open your binder.");
+    return;
+  }
+  const cards = binderState.cards;
+  if (!cards.length) return; // still loading or empty — status already shown
+
+  const size = binderState.layout;   // 3 or 4
+  const perPage = size * size;       // 9 or 16
+  const perSpread = perPage * 2;     // 18 or 32
+  const totalSpreads = Math.max(1, Math.ceil(cards.length / perSpread));
+  binderState.spread = Math.min(Math.max(0, binderState.spread), totalSpreads - 1);
+
+  const start = binderState.spread * perSpread;
+  const spreadCards = cards.slice(start, start + perSpread);
+  const pages = [spreadCards.slice(0, perPage), spreadCards.slice(perPage, perSpread)];
+
+  const frag = document.createDocumentFragment();
+  for (const pageCards of pages) {
+    if (!pageCards.length) continue;
+    const page = document.createElement("div");
+    page.className = `binder-page binder-cols-${size}`;
+    for (const c of pageCards) page.appendChild(editionCardEl(c));
+    frag.appendChild(page);
+  }
+  spreadEl.innerHTML = "";
+  spreadEl.appendChild(frag);
+
+  setStatus("#binder-status",
+    `${cards.length} cards · showing ${start + 1}–${Math.min(start + perSpread, cards.length)}.`);
+
+  pagerEl.hidden = totalSpreads <= 1;
+  pagerEl.innerHTML = `
+    <button class="btn btn-sm" id="binder-prev" ${binderState.spread === 0 ? "disabled" : ""}>◀ Prev</button>
+    <span class="binder-count">Spread ${binderState.spread + 1} / ${totalSpreads}</span>
+    <button class="btn btn-sm" id="binder-next" ${binderState.spread >= totalSpreads - 1 ? "disabled" : ""}>Next ▶</button>`;
+  const prev = $("#binder-prev"), next = $("#binder-next");
+  if (prev) prev.addEventListener("click", () => { binderState.spread--; renderBinder(); window.scrollTo(0, 0); });
+  if (next) next.addEventListener("click", () => { binderState.spread++; renderBinder(); window.scrollTo(0, 0); });
+}
 
 /* ============================================================
    SETS — pick a set and see all its cards
