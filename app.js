@@ -1232,6 +1232,18 @@ async function loadBinderCards() {
   }
 }
 
+// Binder card: just the image (owned in colour, missing greyed), click to zoom.
+function binderCardEl(card) {
+  const owned = !!collection[card.id];
+  const el = document.createElement("div");
+  el.className = "binder-card card-img-wrap" + (owned ? "" : " not-owned");
+  el.dataset.large = cardImage(card, "large");
+  el.innerHTML = `<img loading="lazy" src="${esc(cardImage(card, "normal"))}" alt="${esc(card.name)}" />`;
+  wireCardImageLoader(el);
+  wireImagePreview(el, card);
+  return el;
+}
+
 function renderBinder() {
   const spreadEl = $("#binder-spread");
   const pagerEl = $("#binder-pager");
@@ -1260,7 +1272,7 @@ function renderBinder() {
     if (!pageCards.length) continue;
     const page = document.createElement("div");
     page.className = `binder-page binder-cols-${size}`;
-    for (const c of pageCards) page.appendChild(editionCardEl(c));
+    for (const c of pageCards) page.appendChild(binderCardEl(c));
     frag.appendChild(page);
   }
   spreadEl.innerHTML = "";
