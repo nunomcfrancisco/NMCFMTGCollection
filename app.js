@@ -1257,9 +1257,9 @@ function renderBinder() {
   const cards = binderState.cards;
   if (!cards.length) return; // still loading or empty — status already shown
 
-  const size = binderState.layout;   // 3 or 4
-  const perPage = size * size;       // 9 or 16
-  const perSpread = perPage * 2;     // 18 or 32
+  const size = binderState.layout;   // 3 → 3×3, 4 → 4×3
+  const perPage = size * 3;          // 9 (3×3) or 12 (4×3) — always 3 rows
+  const perSpread = perPage * 2;     // 18 or 24
   const totalSpreads = Math.max(1, Math.ceil(cards.length / perSpread));
   binderState.spread = Math.min(Math.max(0, binderState.spread), totalSpreads - 1);
 
