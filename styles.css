@@ -482,6 +482,10 @@ a { color: var(--accent-hi); }
 .binder-card { border-radius: 8px; border: 1px solid var(--border); }
 .binder-card.not-owned img { filter: grayscale(1) brightness(0.72); }
 .binder-card:hover img { transform: scale(1.04); }
+/* Empty facing page (binder cover / odd last page) — a spacer so the real page
+   keeps its half of the spread. Hidden on phones where pages stack. */
+.binder-blank { background: transparent; border: none; box-shadow: none; padding: 0; }
+@media (max-width: 560px) { .binder-blank { display: none; } }
 .binder-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
 .binder-pager[hidden] { display: none; }
 .binder-count { color: var(--text-dim); font-variant-numeric: tabular-nums; min-width: 128px; text-align: center; }

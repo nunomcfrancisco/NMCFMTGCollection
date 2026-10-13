@@ -1259,33 +1259,43 @@ function renderBinder() {
 
   const size = binderState.layout;   // 3 → 3×3, 4 → 4×3
   const perPage = size * 3;          // 9 (3×3) or 12 (4×3) — always 3 rows
-  const perSpread = perPage * 2;     // 18 or 24
-  const totalSpreads = Math.max(1, Math.ceil(cards.length / perSpread));
-  binderState.spread = Math.min(Math.max(0, binderState.spread), totalSpreads - 1);
+  const totalPages = Math.max(1, Math.ceil(cards.length / perPage));
+  // Behaves like a real binder: the first opening shows only the right page
+  // (the set starts there), then each later opening is a left+right spread.
+  // Opening 0 → [cover, page 0]; opening k≥1 → [page 2k-1, page 2k].
+  const totalOpenings = 1 + Math.ceil((totalPages - 1) / 2);
+  binderState.spread = Math.min(Math.max(0, binderState.spread), totalOpenings - 1);
 
-  const start = binderState.spread * perSpread;
-  const spreadCards = cards.slice(start, start + perSpread);
-  const pages = [spreadCards.slice(0, perPage), spreadCards.slice(perPage, perSpread)];
+  const opening = binderState.spread;
+  const leftPageIdx = opening === 0 ? -1 : 2 * opening - 1;
+  const rightPageIdx = opening === 0 ? 0 : 2 * opening;
+  const pageCards = (idx) =>
+    (idx >= 0 && idx < totalPages) ? cards.slice(idx * perPage, (idx + 1) * perPage) : null;
+
+  const makePage = (cardsForPage) => {
+    const page = document.createElement("div");
+    page.className = `binder-page binder-cols-${size}` + (cardsForPage ? "" : " binder-blank");
+    if (cardsForPage) for (const c of cardsForPage) page.appendChild(binderCardEl(c));
+    return page;
+  };
 
   const frag = document.createDocumentFragment();
-  for (const pageCards of pages) {
-    if (!pageCards.length) continue;
-    const page = document.createElement("div");
-    page.className = `binder-page binder-cols-${size}`;
-    for (const c of pageCards) page.appendChild(binderCardEl(c));
-    frag.appendChild(page);
-  }
+  frag.appendChild(makePage(pageCards(leftPageIdx)));   // blank (cover) on opening 0
+  frag.appendChild(makePage(pageCards(rightPageIdx)));
   spreadEl.innerHTML = "";
   spreadEl.appendChild(frag);
 
-  setStatus("#binder-status",
-    `${cards.length} cards · showing ${start + 1}–${Math.min(start + perSpread, cards.length)}.`);
+  // Status: the card range actually shown in this opening.
+  const shown = [leftPageIdx, rightPageIdx].filter((i) => i >= 0 && i < totalPages);
+  const from = Math.min(...shown) * perPage + 1;
+  const to = Math.min((Math.max(...shown) + 1) * perPage, cards.length);
+  setStatus("#binder-status", `${cards.length} cards · showing ${from}–${to}.`);
 
-  pagerEl.hidden = totalSpreads <= 1;
+  pagerEl.hidden = totalOpenings <= 1;
   pagerEl.innerHTML = `
-    <button class="btn btn-sm" id="binder-prev" ${binderState.spread === 0 ? "disabled" : ""}>◀ Prev</button>
-    <span class="binder-count">Spread ${binderState.spread + 1} / ${totalSpreads}</span>
-    <button class="btn btn-sm" id="binder-next" ${binderState.spread >= totalSpreads - 1 ? "disabled" : ""}>Next ▶</button>`;
+    <button class="btn btn-sm" id="binder-prev" ${opening === 0 ? "disabled" : ""}>◀ Prev</button>
+    <span class="binder-count">Spread ${opening + 1} / ${totalOpenings}</span>
+    <button class="btn btn-sm" id="binder-next" ${opening >= totalOpenings - 1 ? "disabled" : ""}>Next ▶</button>`;
   const prev = $("#binder-prev"), next = $("#binder-next");
   if (prev) prev.addEventListener("click", () => { binderState.spread--; renderBinder(); window.scrollTo(0, 0); });
   if (next) next.addEventListener("click", () => { binderState.spread++; renderBinder(); window.scrollTo(0, 0); });
