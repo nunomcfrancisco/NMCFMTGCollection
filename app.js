@@ -1210,6 +1210,9 @@ $("#binder-layout").addEventListener("change", (e) => {
   renderBinder();
   window.scrollTo(0, 0);
 });
+// Side-rail navigation (clamped in renderBinder); wired once.
+$("#binder-prev").addEventListener("click", () => { binderState.spread--; renderBinder(); window.scrollTo(0, 0); });
+$("#binder-next").addEventListener("click", () => { binderState.spread++; renderBinder(); window.scrollTo(0, 0); });
 
 async function loadBinderCards() {
   const code = binderState.setCode;
@@ -1251,6 +1254,8 @@ function renderBinder() {
   if (!binderState.setCode) {
     spreadEl.innerHTML = "";
     pagerEl.hidden = true;
+    $("#binder-prev").hidden = true;
+    $("#binder-next").hidden = true;
     setStatus("#binder-status", "Pick a set to open your binder.");
     return;
   }
@@ -1292,13 +1297,13 @@ function renderBinder() {
   setStatus("#binder-status", `${cards.length} cards · showing ${from}–${to}.`);
 
   pagerEl.hidden = totalOpenings <= 1;
-  pagerEl.innerHTML = `
-    <button class="btn btn-sm" id="binder-prev" ${opening === 0 ? "disabled" : ""}>◀ Prev</button>
-    <span class="binder-count">Spread ${opening + 1} / ${totalOpenings}</span>
-    <button class="btn btn-sm" id="binder-next" ${opening >= totalOpenings - 1 ? "disabled" : ""}>Next ▶</button>`;
-  const prev = $("#binder-prev"), next = $("#binder-next");
-  if (prev) prev.addEventListener("click", () => { binderState.spread--; renderBinder(); window.scrollTo(0, 0); });
-  if (next) next.addEventListener("click", () => { binderState.spread++; renderBinder(); window.scrollTo(0, 0); });
+  const navHidden = totalOpenings <= 1;
+  const prevBtn = $("#binder-prev"), nextBtn = $("#binder-next");
+  prevBtn.hidden = navHidden;
+  nextBtn.hidden = navHidden;
+  prevBtn.disabled = opening === 0;
+  nextBtn.disabled = opening >= totalOpenings - 1;
+  pagerEl.textContent = `Spread ${opening + 1} / ${totalOpenings}`;
 }
 
 /* ============================================================
